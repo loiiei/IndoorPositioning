@@ -76,11 +76,11 @@ public class DBManager extends SQLiteOpenHelper {
             do {
                 IBeacon iBeacon = new IBeacon();
                 iBeacon.setId(Integer.valueOf(cursor.getString(0)));
-                iBeacon.setxCoord(Integer.valueOf(cursor.getString(1)));
-                iBeacon.setyCoord(Integer.valueOf(cursor.getString(2)));
-                iBeacon.setRssi1(Integer.valueOf(cursor.getString(3)));
-                iBeacon.setRssi2(Integer.valueOf(cursor.getString(4)));
-                iBeacon.setRssi3(Integer.valueOf(cursor.getString(5)));
+                iBeacon.setxCoord(Float.valueOf(cursor.getString(1)));
+                iBeacon.setyCoord(Float.valueOf(cursor.getString(2)));
+                iBeacon.setRssi1(Float.valueOf(cursor.getString(3)));
+                iBeacon.setRssi2(Float.valueOf(cursor.getString(4)));
+                iBeacon.setRssi3(Float.valueOf(cursor.getString(5)));
                 iBeacon.setMajor(Integer.valueOf(cursor.getString(6)));
                 iBeaconList.add(iBeacon);
             }
@@ -88,6 +88,5 @@ public class DBManager extends SQLiteOpenHelper {
         }
         return iBeaconList;
     }
-
 
 }

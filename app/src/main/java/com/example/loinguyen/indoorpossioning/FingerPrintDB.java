@@ -48,9 +48,9 @@ public class FingerPrintDB extends AppCompatActivity {
     {
         float x = Float.parseFloat(editXCoord.getText().toString());
         float y = Float.parseFloat(editYCoord.getText().toString());
-        int rssi1  = Integer.valueOf(editRssi1.getText().toString());
-        int rssi2  = Integer.valueOf(editRssi2.getText().toString());
-        int rssi3  = Integer.valueOf(editRssi3.getText().toString());
+        float rssi1  = Float.parseFloat(editRssi1.getText().toString());
+        float rssi2  = Float.parseFloat(editRssi2.getText().toString());
+        float rssi3  = Float.valueOf(editRssi3.getText().toString());
         int major  = Integer.valueOf(editMajor.getText().toString());
         IBeacon iBeacon = new IBeacon(x, y, rssi1, rssi2, rssi3, major);
         return iBeacon;

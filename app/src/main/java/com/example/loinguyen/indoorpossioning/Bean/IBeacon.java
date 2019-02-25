@@ -6,15 +6,15 @@ public class IBeacon implements Serializable {
     private int id;
     private float xCoord;
     private float yCoord;
-    private int rssi1;
-    private int rssi2;
-    private int rssi3;
+    private float rssi1;
+    private float rssi2;
+    private float rssi3;
     private int Major;
     public IBeacon()
     {
 
     }
-    public IBeacon(float xCoord, float yCoord, int rssi1, int rssi2, int rssi3, int major) {
+    public IBeacon(float xCoord, float yCoord, float rssi1, float rssi2, float rssi3, int major) {
         this.xCoord = xCoord;
         this.yCoord = yCoord;
         this.rssi1 = rssi1;
@@ -23,7 +23,7 @@ public class IBeacon implements Serializable {
         Major = major;
     }
 
-    public IBeacon(int id, float xCoord, float yCoord, int rssi1, int rssi2, int rssi3, int major) {
+    public IBeacon(int id, float xCoord, float yCoord, float rssi1, float rssi2, float rssi3, int major) {
         this.id = id;
         this.xCoord = xCoord;
         this.yCoord = yCoord;
@@ -57,27 +57,27 @@ public class IBeacon implements Serializable {
         this.yCoord = yCoord;
     }
 
-    public int getRssi1() {
+    public float getRssi1() {
         return rssi1;
     }
 
-    public void setRssi1(int rssi1) {
+    public void setRssi1(float rssi1) {
         this.rssi1 = rssi1;
     }
 
-    public int getRssi2() {
+    public float getRssi2() {
         return rssi2;
     }
 
-    public void setRssi2(int rssi2) {
+    public void setRssi2(float rssi2) {
         this.rssi2 = rssi2;
     }
 
-    public int getRssi3() {
+    public float getRssi3() {
         return rssi3;
     }
 
-    public void setRssi3(int rssi3) {
+    public void setRssi3(float rssi3) {
         this.rssi3 = rssi3;
     }
 
