@@ -3,6 +3,7 @@ package com.example.loinguyen.indoorpossioning.Database;
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
+import android.database.DatabaseErrorHandler;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
@@ -66,25 +67,30 @@ public class DBManager extends SQLiteOpenHelper {
     {
         return null;
     }
+
     public List<IBeacon> getListIbeaconByMajor(int major)
     {
         List<IBeacon> iBeaconList = new ArrayList<IBeacon>();
         SQLiteDatabase db = this.getReadableDatabase();
-        Cursor cursor = db.query(TABLE_NAME, null, MAJOR + " = ?",
-                new String[]{String.valueOf(major)}, null, null, null);
-        if(cursor.moveToFirst()) {
-            do {
-                IBeacon iBeacon = new IBeacon();
-                iBeacon.setId(Integer.valueOf(cursor.getString(0)));
-                iBeacon.setxCoord(Float.valueOf(cursor.getString(1)));
-                iBeacon.setyCoord(Float.valueOf(cursor.getString(2)));
-                iBeacon.setRssi1(Float.valueOf(cursor.getString(3)));
-                iBeacon.setRssi2(Float.valueOf(cursor.getString(4)));
-                iBeacon.setRssi3(Float.valueOf(cursor.getString(5)));
-                iBeacon.setMajor(Integer.valueOf(cursor.getString(6)));
-                iBeaconList.add(iBeacon);
+        try {
+            Cursor cursor = db.query(TABLE_NAME, null, MAJOR + " = ?",
+                    new String[]{String.valueOf(major)}, null, null, null);
+            if (cursor.moveToFirst()) {
+                do {
+                    IBeacon iBeacon = new IBeacon();
+                    iBeacon.setId(Integer.valueOf(cursor.getString(0)));
+                    iBeacon.setxCoord(Float.valueOf(cursor.getString(1)));
+                    iBeacon.setyCoord(Float.valueOf(cursor.getString(2)));
+                    iBeacon.setRssi1(Float.valueOf(cursor.getString(3)));
+                    iBeacon.setRssi2(Float.valueOf(cursor.getString(4)));
+                    iBeacon.setRssi3(Float.valueOf(cursor.getString(5)));
+                    iBeacon.setMajor(Integer.valueOf(cursor.getString(6)));
+                    iBeaconList.add(iBeacon);
+                }
+                while (cursor.moveToNext());
             }
-            while (cursor.moveToNext());
+        } catch (Exception ex){
+            ex.printStackTrace();
         }
         return iBeaconList;
     }
