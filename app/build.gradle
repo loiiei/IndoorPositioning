@@ -28,4 +28,6 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation 'org.altbeacon:android-beacon-library:2.14'
     implementation 'com.estimote:sdk:1.0.3:release@aar'
+
+    implementation 'com.github.mirrajabi:search-dialog:1.1'
 }

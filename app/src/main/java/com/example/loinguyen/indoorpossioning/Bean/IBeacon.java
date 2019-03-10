@@ -4,8 +4,8 @@ import java.io.Serializable;
 
 public class IBeacon implements Serializable {
     private int id;
-    private float xCoord;
-    private float yCoord;
+    private double xCoord;
+    private double yCoord;
     private float rssi1;
     private float rssi2;
     private float rssi3;
@@ -14,7 +14,7 @@ public class IBeacon implements Serializable {
     {
 
     }
-    public IBeacon(float xCoord, float yCoord, float rssi1, float rssi2, float rssi3, int major) {
+    public IBeacon(double xCoord, double yCoord, float rssi1, float rssi2, float rssi3, int major) {
         this.xCoord = xCoord;
         this.yCoord = yCoord;
         this.rssi1 = rssi1;
@@ -23,7 +23,7 @@ public class IBeacon implements Serializable {
         Major = major;
     }
 
-    public IBeacon(int id, float xCoord, float yCoord, float rssi1, float rssi2, float rssi3, int major) {
+    public IBeacon(int id, double xCoord, double yCoord, float rssi1, float rssi2, float rssi3, int major) {
         this.id = id;
         this.xCoord = xCoord;
         this.yCoord = yCoord;
@@ -41,19 +41,19 @@ public class IBeacon implements Serializable {
         this.id = id;
     }
 
-    public float getxCoord() {
+    public double getxCoord() {
         return xCoord;
     }
 
-    public void setxCoord(float xCoord) {
+    public void setxCoord(double xCoord) {
         this.xCoord = xCoord;
     }
 
-    public float getyCoord() {
+    public double getyCoord() {
         return yCoord;
     }
 
-    public void setyCoord(float yCoord) {
+    public void setyCoord(double yCoord) {
         this.yCoord = yCoord;
     }
 

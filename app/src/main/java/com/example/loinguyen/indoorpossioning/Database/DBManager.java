@@ -37,8 +37,8 @@ public class DBManager extends SQLiteOpenHelper {
     public void onCreate(SQLiteDatabase db) {
         Log.i(TAG, "DBManager.onCreate");
         String script = "CREATE TABLE " + TABLE_NAME + "("
-                + ID + " INTEGER PRIMARY KEY," + XCOORD + " FLOAT,"
-                + YCOORD + " FLOAT," + RSSI1 + " INTEGER," + RSSI2 + " INTEGER,"+ RSSI3 + " INTEGER,"+ MAJOR + " INTEGER"+ ")";
+                + ID + " INTEGER PRIMARY KEY," + XCOORD + " DOUBLE,"
+                + YCOORD + " DOUBLE," + RSSI1 + " FLOAT," + RSSI2 + " FLOAT,"+ RSSI3 + " FLOAT,"+ MAJOR + " INTEGER"+ ")";
         db.execSQL(script);
     }
 
@@ -79,8 +79,8 @@ public class DBManager extends SQLiteOpenHelper {
                 do {
                     IBeacon iBeacon = new IBeacon();
                     iBeacon.setId(Integer.valueOf(cursor.getString(0)));
-                    iBeacon.setxCoord(Float.valueOf(cursor.getString(1)));
-                    iBeacon.setyCoord(Float.valueOf(cursor.getString(2)));
+                    iBeacon.setxCoord(Double.valueOf(cursor.getString(1)));
+                    iBeacon.setyCoord(Double.valueOf(cursor.getString(2)));
                     iBeacon.setRssi1(Float.valueOf(cursor.getString(3)));
                     iBeacon.setRssi2(Float.valueOf(cursor.getString(4)));
                     iBeacon.setRssi3(Float.valueOf(cursor.getString(5)));

@@ -33,6 +33,7 @@
             android:value="@string/google_maps_key" />
 
         <activity
+            android:launchMode="singleInstance"
             android:name=".MainActivity"
             android:label="@string/title_activity_main">
             <intent-filter>
