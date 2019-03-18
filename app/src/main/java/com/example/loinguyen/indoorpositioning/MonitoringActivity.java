@@ -1,13 +1,9 @@
-package com.example.loinguyen.indoorpossioning;
+package com.example.loinguyen.indoorpositioning;
 
 import android.app.Activity;
-import android.app.TaskStackBuilder;
 import android.os.RemoteException;
-import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-
-import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
 
 import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
@@ -23,7 +19,7 @@ import java.util.Collection;
 
 public class MonitoringActivity extends Activity implements BeaconConsumer {
     private static final String TAG = "Monitoring Activity";
-    private static final String UNIQUE_ID = "com.example.loinguyen.indoorpossioning";
+    private static final String UNIQUE_ID = "com.example.loinguyen.indoorpositioning";
     private boolean found = false;
     private static final String PROXIMITY_UUID = "B9407F30-F5F8-466E-AFF9-25556B57FE6D";
     private BeaconManager beaconManager;

@@ -1,4 +1,4 @@
-package com.example.loinguyen.indoorpossioning.Filter;
+package com.example.loinguyen.indoorpositioning.Filter;
 
 public interface Filter {
 

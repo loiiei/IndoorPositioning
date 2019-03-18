@@ -1,4 +1,4 @@
-package com.example.loinguyen.indoorpossioning;
+package com.example.loinguyen.indoorpositioning;
 
 import org.junit.Test;
 

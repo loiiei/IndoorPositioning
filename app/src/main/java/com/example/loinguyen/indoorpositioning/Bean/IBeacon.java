@@ -1,4 +1,4 @@
-package com.example.loinguyen.indoorpossioning.Bean;
+package com.example.loinguyen.indoorpositioning.Bean;
 
 import java.io.Serializable;
 

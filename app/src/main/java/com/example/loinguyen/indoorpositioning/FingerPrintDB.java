@@ -1,4 +1,4 @@
-package com.example.loinguyen.indoorpossioning;
+package com.example.loinguyen.indoorpositioning;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -6,8 +6,8 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.EditText;
 
-import com.example.loinguyen.indoorpossioning.Bean.IBeacon;
-import com.example.loinguyen.indoorpossioning.Database.DBManager;
+import com.example.loinguyen.indoorpositioning.Bean.IBeacon;
+import com.example.loinguyen.indoorpositioning.Database.DBManager;
 
 public class FingerPrintDB extends AppCompatActivity {
 

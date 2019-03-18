@@ -1,4 +1,4 @@
-package com.example.loinguyen.indoorpossioning.Filter;
+package com.example.loinguyen.indoorpositioning.Filter;
 
 /**
  * Using Kalman Filter

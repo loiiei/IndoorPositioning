@@ -3,7 +3,7 @@ apply plugin: 'com.android.application'
 android {
     compileSdkVersion 28
     defaultConfig {
-        applicationId "com.example.loinguyen.indoorpossioning"
+        applicationId "com.example.loinguyen.indoorpositioning"
         minSdkVersion 19
         targetSdkVersion 28
         versionCode 1
@@ -20,7 +20,7 @@ android {
 
 dependencies {
     implementation fileTree(dir: 'libs', include: ['*.jar'])
-    implementation 'com.android.support:appcompat-v7:28.0.0'
+    implementation 'com.android.support:appcompat-v7:27.0.2'
     implementation 'com.google.android.gms:play-services-maps:16.0.0'
     implementation 'com.android.support.constraint:constraint-layout:1.1.3'
     testImplementation 'junit:junit:4.12'
@@ -28,6 +28,7 @@ dependencies {
     androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.2'
     implementation 'org.altbeacon:android-beacon-library:2.14'
     implementation 'com.estimote:sdk:1.0.3:release@aar'
-
     implementation 'com.github.mirrajabi:search-dialog:1.1'
+    implementation 'com.github.arimorty:floatingsearchview:2.1.1'
+    implementation 'com.android.support:design:27.1.0'
 }

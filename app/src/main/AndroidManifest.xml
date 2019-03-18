@@ -1,16 +1,18 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.loinguyen.indoorpossioning">
+    package="com.example.loinguyen.indoorpositioning">
 
     <!--
          The ACCESS_COARSE/FINE_LOCATION permissions are not required to use
          Google Maps Android API v2, but you must specify either coarse or fine
          location permissions for the 'MyLocation' functionality. 
     -->
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_ADMIN" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION"/>
+    <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE"/>
 
     <application
         android:allowBackup="true"
@@ -30,12 +32,12 @@
         -->
         <meta-data
             android:name="com.google.android.geo.API_KEY"
-            android:value="@string/google_maps_key" />
+            android:value="AIzaSyA4hcqq05xyvNF5etkLIyHGWo__78ks19w" />
 
         <activity
             android:launchMode="singleInstance"
-            android:name=".MainActivity"
-            android:label="@string/title_activity_main">
+            android:name="com.example.loinguyen.indoorpositioning.MainActivity"
+            android:theme="@style/Theme.AppCompat.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -43,11 +45,11 @@
             </intent-filter>
         </activity>
         <activity
-            android:name=".FingerPrintDB"
+            android:name="com.example.loinguyen.indoorpositioning.FingerPrintDB"
             android:label="@string/app_name">
 
         </activity>
-        <activity android:name=".MonitoringActivity">
+        <activity android:name="com.example.loinguyen.indoorpositioning.MonitoringActivity">
 
 
         </activity>

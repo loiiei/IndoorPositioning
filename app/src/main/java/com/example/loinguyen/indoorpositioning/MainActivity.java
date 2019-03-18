@@ -1,17 +1,15 @@
-package com.example.loinguyen.indoorpossioning;
+package com.example.loinguyen.indoorpositioning;
 
-import android.content.Intent;
 import android.os.RemoteException;
 import android.os.Bundle;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
-import android.support.v7.widget.SearchView;
 
+import com.arlib.floatingsearchview.FloatingSearchView;
+import com.arlib.floatingsearchview.suggestions.model.SearchSuggestion;
 import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
-import com.example.loinguyen.indoorpossioning.Bean.IBeacon;
-import com.example.loinguyen.indoorpossioning.Database.DBManager;
+import com.example.loinguyen.indoorpositioning.Bean.IBeacon;
+import com.example.loinguyen.indoorpositioning.Database.DBManager;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -39,15 +37,11 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-import ir.mirrajabi.searchdialog.SimpleSearchDialogCompat;
-import ir.mirrajabi.searchdialog.core.BaseSearchDialogCompat;
-import ir.mirrajabi.searchdialog.core.SearchResultListener;
-import ir.mirrajabi.searchdialog.core.Searchable;
-
 public class MainActivity extends AppCompatActivity implements BeaconConsumer,OnMapReadyCallback,
     GoogleMap.OnGroundOverlayClickListener{
 
     private GoogleMap mMap;
+
     private static final LatLng G2 = new LatLng(21.037927, 105.783143);
 
     private static final LatLng NEAR_NEWARK =
@@ -57,18 +51,17 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
     private GroundOverlay mGroundOverlay;
 
-    private GroundOverlay mGroundOverlayRotated;
+    Marker marker;
 
     private int mCurrentEntry = 0;
 
-    private boolean switchMap = true;
-
-    private static final String TAG = "Monitoring Activity ";
-    private static final String BEACON_TAG = "Beacon Scanner: ";
+    private static final String TAG = "Beacon Scanner";
     private static final String LOCATION_TAG = "Finding Location: ";
-    private static final String UNIQUE_ID = "com.example.loinguyen.indoorpossioning";
+    private static final String UNIQUE_ID = "com.example.loinguyen.indoorpositioning";
     private static final String PROXIMITY_UUID = "B9407F30-F5F8-466E-AFF9-25556B57FE6D";
+
     private BeaconManager beaconManager;
+
     private Region region;
 
     public static ArrayList<Beacon> beaconList = new ArrayList<Beacon>();
@@ -77,13 +70,15 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
     IBeacon mlocation;
 
+    private List<RoomSuggestion> mSuggestions = new ArrayList<>();
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        getSupportActionBar().hide();
         SystemRequirementsChecker.checkWithDefaultDialogs(this);
         beaconManager = BeaconManager.getInstanceForApplication(this);
-        //beaconManager.setEnableScheduledScanJobs(true);
         beaconManager.getBeaconParsers().add(new BeaconParser()
                 .setBeaconLayout("m:2-3=0215,i:4-19,i:20-21,i:22-23,p:24-24,d:25-25"));
         region = new Region(UNIQUE_ID, Identifier.parse(PROXIMITY_UUID), null, null);
@@ -94,6 +89,63 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
+
+        initData();
+        final FloatingSearchView searchView= (FloatingSearchView) findViewById(R.id.floating_search_view);
+
+        searchView.setOnQueryChangeListener(new FloatingSearchView.OnQueryChangeListener() {
+            @Override
+            public void onSearchTextChanged(String oldQuery, String newQuery) {
+                if (!oldQuery.equals("") && newQuery.equals("")) {
+                    searchView.clearSuggestions();
+                } else {
+                    searchView.showProgress();
+                    searchView.swapSuggestions(getSuggestion(newQuery));
+                    searchView.hideProgress();
+                }
+            }
+        });
+        searchView.setOnFocusChangeListener(new FloatingSearchView.OnFocusChangeListener() {
+            @Override
+            public void onFocus() {
+                searchView.showProgress();
+                searchView.swapSuggestions(getSuggestion(searchView.getQuery()));
+                searchView.hideProgress();
+            }
+
+            @Override
+            public void onFocusCleared() {
+
+            }
+        });
+        searchView.setOnSearchListener(new FloatingSearchView.OnSearchListener() {
+            @Override
+            public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
+                RoomSuggestion suggestion= (RoomSuggestion) searchSuggestion;
+                searchView.setSearchText(suggestion.getBody());
+                searchView.clearSearchFocus();
+            }
+
+            @Override
+            public void onSearchAction(String currentQuery) {
+
+            }
+        });
+    }
+    private void initData(){
+        mSuggestions.add(new RoomSuggestion("Room 101"));
+        mSuggestions.add(new RoomSuggestion("Room 102"));
+        mSuggestions.add(new RoomSuggestion("Room 103"));
+    }
+
+    private List<RoomSuggestion> getSuggestion(String query){
+        List<RoomSuggestion> suggestions = new ArrayList<>();
+        for(RoomSuggestion suggestion:mSuggestions){
+            if(suggestion.getBody().toLowerCase().contains(query.toLowerCase())){
+                suggestions.add(suggestion);
+            }
+        }
+        return suggestions;
     }
 
     @Override
@@ -105,46 +157,14 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         mGroundOverlay = mMap.addGroundOverlay(new GroundOverlayOptions()
                 .image(mImages.get(mCurrentEntry)).anchor(0,1)
                 .position(G2, 49f,30f));
-        //AddLocationMaker(mlocation);
-        /*if(mlocation != null) {
-            Log.d(LOCATION_TAG, "Adding maker for location");
-            double x = mlocation.getxCoord();
-            double y = mlocation.getyCoord();
-            double latitude = x*0.000016 + 21.037891;
-            double longtitude = y*0.000012444 + 105.783296;
-            //Add a marker in your location and move the camera
-            LatLng myLocation = new LatLng(latitude, longtitude);
-            MarkerOptions markerOptions = new MarkerOptions().position(myLocation);
-            Marker m = mMap.addMarker(markerOptions);
-            m.setPosition(myLocation);*/
-           /* new CountDownTimer(3000, 1000) {
-                @Override
-                public void onTick(long millisUntilFinished) {
-
-                }
-
-                @Override
-                public void onFinish() {
-
-                }*/
-
-                /*mMap.moveCamera(CameraUpdateFactory.newLatLng(myLocation));*/
-
     }
 
-    public void AddLocationMaker(IBeacon ilocation) {
-        if(ilocation != null) {
-            Log.d(LOCATION_TAG, "Adding maker for location");
-            double x = ilocation.getxCoord();
-            double y = ilocation.getyCoord();
-            double latitude = x * 0.000016 + 21.037891;
-            double longtitude = y * 0.000012444 + 105.783296;
-            //Add a marker in your location and move the camera
-            LatLng myLocation = new LatLng(latitude, longtitude);
-            MarkerOptions markerOptions = new MarkerOptions().position(myLocation);
-            Marker m = mMap.addMarker(markerOptions);
-            m.setPosition(myLocation);
-        }
+    public LatLng convertToLatLng(IBeacon ilocation) {
+        double x = ilocation.getxCoord();
+        double y = ilocation.getyCoord();
+        double latitude = x * 0.000016 + 21.037891;
+        double longtitude = y * 0.000012444 + 105.783296;
+        return new LatLng(latitude, longtitude);
     }
 
     @Override
@@ -153,37 +173,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
     }
 
     @Override
-    public boolean onCreateOptionsMenu(Menu menu) {
-        getMenuInflater().inflate(R.menu.menu, menu);
-        MenuItem btnSearch = menu.findItem(R.id.ic_search_menu);
-        SearchView searchView = (SearchView) btnSearch.getActionView();
-        return super.onCreateOptionsMenu(menu);
-    }
-
-    // handle button activities
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if(id == R.id.ic_search_menu)
-        {
-            new SimpleSearchDialogCompat<>(MainActivity.this, "Search..", "Which room are you looking for...?," +
-                    null, initData(), new SearchResultListener<Searchable>() {
-                @Override
-                public void onSelected(BaseSearchDialogCompat baseSearchDialogCompat, Searchable searchable, int i) {
-
-                }
-            }
-
-        }
-        if (id == R.id.btn) {
-            Intent myIntent = new Intent(MainActivity.this, FingerPrintDB.class);
-            MainActivity.this.startActivity(myIntent);
-        }
-        return super.onOptionsItemSelected(item);
-    }
-
-    @Override
     public void onBeaconServiceConnect() {
+
         beaconManager.removeAllMonitorNotifiers();
         beaconManager.addMonitorNotifier(new MonitorNotifier() {
             @Override
@@ -218,13 +209,11 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                 if(beacons.size()>0){
                     beaconList.clear();
                     for(final Beacon beacon: beacons) {
-                        Log.d(BEACON_TAG, String.valueOf(beacon.getId2()));
                         beaconList.add(beacon);
                     }
-                    Log.d(BEACON_TAG, String.valueOf(beaconList.size()));
                     if(beaconList.size() >= 3)
                     {
-                        Log.d(BEACON_TAG, "Sort beacon" );
+                        // Sort list of ibeacon
                         Collections.sort(beaconList, new Comparator<Beacon>() {
                             @Override
                             public int compare(Beacon beacon1, Beacon beacon2) {
@@ -234,14 +223,17 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                             }
                         });
                         String major = String.valueOf(beaconList.get(0).getId2());
-                        Log.d(LOCATION_TAG, "Nearest beacon have major: " + major);
                         // detect location
                         if((db.getListIbeaconByMajor(Integer.valueOf(major))).size()>0) {
                             IBeacon newLocation = selectpoint(db.getListIbeaconByMajor(Integer.valueOf(major)),
                                     beaconList.get(0).getRssi(), beaconList.get(1).getRssi(), beaconList.get(2).getRssi());
                             Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getxCoord()) + ", " + String.valueOf(newLocation.getyCoord()) + ")");
                             mlocation = newLocation;
-                            AddLocationMaker(newLocation);
+                            if(marker != null){
+                                marker.remove();
+                            }
+                            MarkerOptions markerOptions = new MarkerOptions();
+                            marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
                         }
                     }
                 }
@@ -263,7 +255,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
     @Override
     protected void onResume() {
         super.onResume();
-     //   beaconManager.bind(this);
     }
 
 

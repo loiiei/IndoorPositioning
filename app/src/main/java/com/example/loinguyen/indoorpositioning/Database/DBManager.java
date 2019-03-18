@@ -1,20 +1,20 @@
-package com.example.loinguyen.indoorpossioning.Database;
+package com.example.loinguyen.indoorpositioning.Database;
 
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
-import android.database.DatabaseErrorHandler;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import com.example.loinguyen.indoorpossioning.Bean.IBeacon;
+import com.example.loinguyen.indoorpositioning.Bean.IBeacon;
 
 import java.util.ArrayList;
 import java.util.List;
 
 public class DBManager extends SQLiteOpenHelper {
 
+    private static final String DATABASE_PATH = "data/data/com.example.loinguyen.indoorpositioning/databases/";
     private static final String TAG = "SQLite";
     private static final String DATABASE_NAME = "Rssi";
     private static final int DATABASE_VERSION = 1;
@@ -28,6 +28,7 @@ public class DBManager extends SQLiteOpenHelper {
     private static final String RSSI3= "rssi3";
     private static final String MAJOR= "major";
     private Context context;
+    private SQLiteDatabase mDatabase;
 
     public DBManager(Context context)
     {
@@ -68,11 +69,18 @@ public class DBManager extends SQLiteOpenHelper {
         return null;
     }
 
+    public void openDataBase(){
+        String dbPath = DATABASE_PATH + DATABASE_NAME;
+        mDatabase = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY);
+
+    }
+
     public List<IBeacon> getListIbeaconByMajor(int major)
     {
         List<IBeacon> iBeaconList = new ArrayList<IBeacon>();
         SQLiteDatabase db = this.getReadableDatabase();
         try {
+            openDataBase();
             Cursor cursor = db.query(TABLE_NAME, null, MAJOR + " = ?",
                     new String[]{String.valueOf(major)}, null, null, null);
             if (cursor.moveToFirst()) {

@@ -1,10 +1,8 @@
-package com.example.loinguyen.indoorpossioning.Adapter;
+package com.example.loinguyen.indoorpositioning.Adapter;
 
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-
-import com.example.loinguyen.indoorpossioning.MainActivity;
 
 import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
