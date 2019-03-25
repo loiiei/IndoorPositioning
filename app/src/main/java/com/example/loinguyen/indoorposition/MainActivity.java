@@ -1,15 +1,29 @@
-package com.example.loinguyen.indoorpositioning;
+package com.example.loinguyen.indoorposition;
 
+import android.content.Context;
+import android.graphics.Bitmap;
+import android.graphics.Canvas;
+import android.graphics.drawable.Drawable;
 import android.os.RemoteException;
 import android.os.Bundle;
+import android.support.annotation.ColorInt;
+import android.support.annotation.DrawableRes;
+import android.support.annotation.NonNull;
+import android.support.v4.content.ContextCompat;
+import android.support.v4.content.res.ResourcesCompat;
+import android.support.v4.graphics.drawable.DrawableCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 
 import com.arlib.floatingsearchview.FloatingSearchView;
 import com.arlib.floatingsearchview.suggestions.model.SearchSuggestion;
+import com.directions.route.Routing;
+import com.directions.route.RoutingListener;
 import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
-import com.example.loinguyen.indoorpositioning.Bean.IBeacon;
-import com.example.loinguyen.indoorpositioning.Database.DBManager;
+import com.example.loinguyen.indoorposition.Bean.IBeacon;
+import com.example.loinguyen.indoorposition.Bean.Room;
+import com.example.loinguyen.indoorposition.Database.DBManager;
+import com.example.loinguyen.indoorposition.Database.RoomDBManager;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -42,7 +56,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
     private GoogleMap mMap;
 
-    private static final LatLng G2 = new LatLng(21.037927, 105.783143);
+    private static final LatLng G2 = new LatLng(21.037926, 105.783139);
 
     private static final LatLng NEAR_NEWARK =
             new LatLng(G2.latitude - 0.001, G2.longitude - 0.025);
@@ -53,11 +67,13 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
     Marker marker;
 
+    Marker roomMaker;
+
     private int mCurrentEntry = 0;
 
     private static final String TAG = "Beacon Scanner";
     private static final String LOCATION_TAG = "Finding Location: ";
-    private static final String UNIQUE_ID = "com.example.loinguyen.indoorpositioning";
+    private static final String UNIQUE_ID = "com.example.loinguyen.indoorposition";
     private static final String PROXIMITY_UUID = "B9407F30-F5F8-466E-AFF9-25556B57FE6D";
 
     private BeaconManager beaconManager;
@@ -66,17 +82,20 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
     public static ArrayList<Beacon> beaconList = new ArrayList<Beacon>();
 
-    final DBManager db = new DBManager(this);
+    DBManager db;
+
+    RoomDBManager rdb;
 
     IBeacon mlocation;
 
-    private List<RoomSuggestion> mSuggestions = new ArrayList<>();
+    private List<Room> mSuggestions = new ArrayList<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getSupportActionBar().hide();
+        db = new DBManager(this);
         SystemRequirementsChecker.checkWithDefaultDialogs(this);
         beaconManager = BeaconManager.getInstanceForApplication(this);
         beaconManager.getBeaconParsers().add(new BeaconParser()
@@ -90,7 +109,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        initData();
+        rdb = new RoomDBManager(this);
+        mSuggestions = rdb.getListRoom();
         final FloatingSearchView searchView= (FloatingSearchView) findViewById(R.id.floating_search_view);
 
         searchView.setOnQueryChangeListener(new FloatingSearchView.OnQueryChangeListener() {
@@ -98,6 +118,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
             public void onSearchTextChanged(String oldQuery, String newQuery) {
                 if (!oldQuery.equals("") && newQuery.equals("")) {
                     searchView.clearSuggestions();
+                    roomMaker.remove();
                 } else {
                     searchView.showProgress();
                     searchView.swapSuggestions(getSuggestion(newQuery));
@@ -115,15 +136,23 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
             @Override
             public void onFocusCleared() {
-
             }
         });
         searchView.setOnSearchListener(new FloatingSearchView.OnSearchListener() {
             @Override
             public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
-                RoomSuggestion suggestion= (RoomSuggestion) searchSuggestion;
+                Room suggestion= (Room) searchSuggestion;
                 searchView.setSearchText(suggestion.getBody());
                 searchView.clearSearchFocus();
+                if(roomMaker != null){
+                    roomMaker.remove();
+                }
+                MarkerOptions markerOptions = new MarkerOptions();
+                //MarkerOptions markerOptions = new MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.drawable.icon));
+                roomMaker = mMap.addMarker(markerOptions.position(croodToLatLng(suggestion.getX(), suggestion.getY())));
+                roomMaker.setTitle(suggestion.getTitle() + " " + suggestion.getDescription());
+                roomMaker.showInfoWindow();
+
             }
 
             @Override
@@ -131,16 +160,12 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
             }
         });
-    }
-    private void initData(){
-        mSuggestions.add(new RoomSuggestion("Room 101"));
-        mSuggestions.add(new RoomSuggestion("Room 102"));
-        mSuggestions.add(new RoomSuggestion("Room 103"));
+       // searchView.attachNavigationDrawerToMenuButton(mDrawerLayout);
     }
 
-    private List<RoomSuggestion> getSuggestion(String query){
-        List<RoomSuggestion> suggestions = new ArrayList<>();
-        for(RoomSuggestion suggestion:mSuggestions){
+    private List<Room> getSuggestion(String query){
+        List<Room> suggestions = new ArrayList<>();
+        for(Room suggestion:mSuggestions){
             if(suggestion.getBody().toLowerCase().contains(query.toLowerCase())){
                 suggestions.add(suggestion);
             }
@@ -156,20 +181,25 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         mImages.add(BitmapDescriptorFactory.fromResource(R.drawable.g21));
         mGroundOverlay = mMap.addGroundOverlay(new GroundOverlayOptions()
                 .image(mImages.get(mCurrentEntry)).anchor(0,1)
-                .position(G2, 49f,30f));
+                .position(G2, 49.5f,30f));
     }
 
     public LatLng convertToLatLng(IBeacon ilocation) {
         double x = ilocation.getxCoord();
         double y = ilocation.getyCoord();
-        double latitude = x * 0.000016 + 21.037891;
-        double longtitude = y * 0.000012444 + 105.783296;
+        double latitude   = y * 0.00001653846 + 21.037975;
+        double longtitude = x * 0.00001987447 + 105.783142;
+        return new LatLng(latitude, longtitude);
+    }
+
+    public LatLng croodToLatLng(double x, double y) {
+        double latitude     = y * 0.00001653846 + 21.037975;
+        double longtitude   = x * 0.00001987447 + 105.783142;
         return new LatLng(latitude, longtitude);
     }
 
     @Override
     public void onGroundOverlayClick(GroundOverlay groundOverlay) {
-
     }
 
     @Override
@@ -206,37 +236,39 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         beaconManager.addRangeNotifier(new RangeNotifier() {
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
-                if(beacons.size()>0){
-                    beaconList.clear();
-                    for(final Beacon beacon: beacons) {
-                        beaconList.add(beacon);
-                    }
-                    if(beaconList.size() >= 3)
-                    {
-                        // Sort list of ibeacon
-                        Collections.sort(beaconList, new Comparator<Beacon>() {
-                            @Override
-                            public int compare(Beacon beacon1, Beacon beacon2) {
-                            float rssi1 = beacon1.getRssi();
-                            float rssi2 = beacon2.getRssi();
-                            return rssi1 > rssi2 ? -1 : 1;
-                            }
-                        });
-                        String major = String.valueOf(beaconList.get(0).getId2());
-                        // detect location
-                        if((db.getListIbeaconByMajor(Integer.valueOf(major))).size()>0) {
-                            IBeacon newLocation = selectpoint(db.getListIbeaconByMajor(Integer.valueOf(major)),
-                                    beaconList.get(0).getRssi(), beaconList.get(1).getRssi(), beaconList.get(2).getRssi());
-                            Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getxCoord()) + ", " + String.valueOf(newLocation.getyCoord()) + ")");
-                            mlocation = newLocation;
-                            if(marker != null){
-                                marker.remove();
-                            }
-                            MarkerOptions markerOptions = new MarkerOptions();
-                            marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
+            if(beacons.size()>0){
+                beaconList.clear();
+                for(final Beacon beacon: beacons) {
+                    Log.d(TAG, beacon.getId2().toString());
+                    beaconList.add(beacon);
+                }
+                Log.d(TAG, String.valueOf(beaconList.size()));
+                if(beaconList.size() >= 3)
+                {
+                    // Sort list of ibeacon
+                    Collections.sort(beaconList, new Comparator<Beacon>() {
+                        @Override
+                        public int compare(Beacon beacon1, Beacon beacon2) {
+                            double rssi1 = beacon1.getRssi();
+                            double rssi2 = beacon2.getRssi();
+                        return rssi1 > rssi2 ? -1 : 1;
                         }
+                    });
+                    String major = String.valueOf(beaconList.get(0).getId2());
+                    // detect location
+                    if((db.getListIbeaconByMajor(Integer.valueOf(major))).size()>0) {
+                        IBeacon newLocation = selectpoint(db.getListIbeaconByMajor(Integer.valueOf(major)),
+                                beaconList.get(0).getRssi(), beaconList.get(1).getRssi(), beaconList.get(2).getRssi());
+                        Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getxCoord()) + ", " + String.valueOf(newLocation.getyCoord()) + ")");
+                        mlocation = newLocation;
+                        if(marker != null){
+                            marker.remove();
+                        }
+                        MarkerOptions markerOptions = new MarkerOptions();
+                        marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
                     }
                 }
+            }
             }
         });
 
@@ -266,9 +298,9 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
      * @param rssi3
      * @return ibeacon have location nearest
      */
-    public IBeacon selectpoint(List<IBeacon> iBeaconList, float rssi1, float rssi2, float rssi3){
+    public IBeacon selectpoint(List<IBeacon> iBeaconList, double rssi1, double rssi2, double rssi3){
         IBeacon iBeacon = new IBeacon();
-        float d1 = 0, d2 = 0, d3 = 0, d = 0;
+        double d1 = 0, d2 = 0, d3 = 0, d = 0;
         ArrayList<IBeacon> trustBeacon = new ArrayList<IBeacon>();
         ArrayList minDistance = new ArrayList();
 
@@ -290,5 +322,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         iBeacon = iBeaconList.get(indexOfMinimum);
         return iBeacon;
     }
+
+
 
 }

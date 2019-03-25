@@ -1,4 +1,4 @@
-package com.example.loinguyen.indoorpositioning;
+package com.example.loinguyen.indoorposition;
 
 import ir.mirrajabi.searchdialog.core.Searchable;
 

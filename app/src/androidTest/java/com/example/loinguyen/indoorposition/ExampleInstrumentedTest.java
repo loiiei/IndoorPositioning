@@ -1,4 +1,4 @@
-package com.example.loinguyen.indoorpositioning;
+package com.example.loinguyen.indoorposition;
 
 import android.content.Context;
 import android.support.test.InstrumentationRegistry;
@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getTargetContext();
 
-        assertEquals("com.example.loinguyen.indoorpositioning", appContext.getPackageName());
+        assertEquals("com.example.loinguyen.indoorposition", appContext.getPackageName());
     }
 }

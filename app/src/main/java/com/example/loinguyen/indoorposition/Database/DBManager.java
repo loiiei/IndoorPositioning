@@ -1,25 +1,24 @@
-package com.example.loinguyen.indoorpositioning.Database;
+package com.example.loinguyen.indoorposition.Database;
 
 import android.content.ContentValues;
 import android.content.Context;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
-import android.database.sqlite.SQLiteOpenHelper;
 import android.util.Log;
 
-import com.example.loinguyen.indoorpositioning.Bean.IBeacon;
+import com.example.loinguyen.indoorposition.Bean.IBeacon;
+import com.readystatesoftware.sqliteasset.SQLiteAssetHelper;
 
 import java.util.ArrayList;
 import java.util.List;
 
-public class DBManager extends SQLiteOpenHelper {
+public class DBManager extends SQLiteAssetHelper {
 
-    private static final String DATABASE_PATH = "data/data/com.example.loinguyen.indoorpositioning/databases/";
     private static final String TAG = "SQLite";
-    private static final String DATABASE_NAME = "Rssi";
+    private static final String DB_NAME = "Rssi.sqlite";
     private static final int DATABASE_VERSION = 1;
-    private static final String TABLE_NAME = "Rssi";
-
+    private static final String TABLE_NAME = "rssi";
+    private static final String TABLE_NAME1 = "room";
     private static final String ID = "id";
     private static final String XCOORD = "x";
     private static final String YCOORD = "y";
@@ -28,25 +27,11 @@ public class DBManager extends SQLiteOpenHelper {
     private static final String RSSI3= "rssi3";
     private static final String MAJOR= "major";
     private Context context;
-    private SQLiteDatabase mDatabase;
 
     public DBManager(Context context)
     {
-        super(context, DATABASE_NAME, null, DATABASE_VERSION);
-    }
-    @Override
-    public void onCreate(SQLiteDatabase db) {
-        Log.i(TAG, "DBManager.onCreate");
-        String script = "CREATE TABLE " + TABLE_NAME + "("
-                + ID + " INTEGER PRIMARY KEY," + XCOORD + " DOUBLE,"
-                + YCOORD + " DOUBLE," + RSSI1 + " FLOAT," + RSSI2 + " FLOAT,"+ RSSI3 + " FLOAT,"+ MAJOR + " INTEGER"+ ")";
-        db.execSQL(script);
-    }
-
-    @Override
-    public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        db.execSQL("DROP TABLE IF EXISTS "+TABLE_NAME);
-        onCreate(db);
+        super(context, DB_NAME, null, DATABASE_VERSION);
+        this.context = context;
     }
 
     public void addIBeacon(IBeacon iBeacon)
@@ -64,23 +49,11 @@ public class DBManager extends SQLiteOpenHelper {
         db.close();
     }
 
-    public List<IBeacon> getListIBeacon()
-    {
-        return null;
-    }
-
-    public void openDataBase(){
-        String dbPath = DATABASE_PATH + DATABASE_NAME;
-        mDatabase = SQLiteDatabase.openDatabase(dbPath, null, SQLiteDatabase.OPEN_READONLY);
-
-    }
-
     public List<IBeacon> getListIbeaconByMajor(int major)
     {
         List<IBeacon> iBeaconList = new ArrayList<IBeacon>();
-        SQLiteDatabase db = this.getReadableDatabase();
+        SQLiteDatabase db = getReadableDatabase();
         try {
-            openDataBase();
             Cursor cursor = db.query(TABLE_NAME, null, MAJOR + " = ?",
                     new String[]{String.valueOf(major)}, null, null, null);
             if (cursor.moveToFirst()) {

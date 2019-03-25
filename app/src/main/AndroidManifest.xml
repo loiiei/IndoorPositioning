@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.loinguyen.indoorpositioning">
+    package="com.example.loinguyen.indoorposition">
 
     <!--
          The ACCESS_COARSE/FINE_LOCATION permissions are not required to use
@@ -36,7 +36,7 @@
 
         <activity
             android:launchMode="singleInstance"
-            android:name="com.example.loinguyen.indoorpositioning.MainActivity"
+            android:name="com.example.loinguyen.indoorposition.MainActivity"
             android:theme="@style/Theme.AppCompat.NoActionBar">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
@@ -45,12 +45,8 @@
             </intent-filter>
         </activity>
         <activity
-            android:name="com.example.loinguyen.indoorpositioning.FingerPrintDB"
+            android:name="com.example.loinguyen.indoorposition.FingerPrintDB"
             android:label="@string/app_name">
-
-        </activity>
-        <activity android:name="com.example.loinguyen.indoorpositioning.MonitoringActivity">
-
 
         </activity>
     </application>

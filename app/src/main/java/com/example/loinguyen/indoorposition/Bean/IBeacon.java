@@ -1,4 +1,4 @@
-package com.example.loinguyen.indoorpositioning.Bean;
+package com.example.loinguyen.indoorposition.Bean;
 
 import java.io.Serializable;
 
@@ -6,9 +6,9 @@ public class IBeacon implements Serializable {
     private int id;
     private double xCoord;
     private double yCoord;
-    private float rssi1;
-    private float rssi2;
-    private float rssi3;
+    private double rssi1;
+    private double rssi2;
+    private double rssi3;
     private int Major;
     public IBeacon()
     {
@@ -57,7 +57,7 @@ public class IBeacon implements Serializable {
         this.yCoord = yCoord;
     }
 
-    public float getRssi1() {
+    public double getRssi1() {
         return rssi1;
     }
 
@@ -65,7 +65,7 @@ public class IBeacon implements Serializable {
         this.rssi1 = rssi1;
     }
 
-    public float getRssi2() {
+    public double getRssi2() {
         return rssi2;
     }
 
@@ -73,7 +73,7 @@ public class IBeacon implements Serializable {
         this.rssi2 = rssi2;
     }
 
-    public float getRssi3() {
+    public double getRssi3() {
         return rssi3;
     }
 
