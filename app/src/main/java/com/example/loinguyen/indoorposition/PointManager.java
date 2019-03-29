@@ -9,7 +9,7 @@ import android.widget.EditText;
 import com.example.loinguyen.indoorposition.Bean.IBeacon;
 import com.example.loinguyen.indoorposition.Database.DBManager;
 
-public class FingerPrintDB extends AppCompatActivity {
+public class PointManager extends AppCompatActivity {
 
     EditText editXCoord, editYCoord, editRssi1, editRssi2, editRssi3, editMajor;
     Button btn;

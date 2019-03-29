@@ -1,19 +1,27 @@
 package com.example.loinguyen.indoorposition;
 
 import android.content.Context;
+import android.content.Intent;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.RemoteException;
 import android.os.Bundle;
 import android.support.annotation.ColorInt;
 import android.support.annotation.DrawableRes;
 import android.support.annotation.NonNull;
+import android.support.design.widget.NavigationView;
 import android.support.v4.content.ContextCompat;
 import android.support.v4.content.res.ResourcesCompat;
 import android.support.v4.graphics.drawable.DrawableCompat;
+import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
+import android.view.MenuItem;
+import android.view.View;
+import android.widget.TextView;
+import android.widget.Toast;
 
 import com.arlib.floatingsearchview.FloatingSearchView;
 import com.arlib.floatingsearchview.suggestions.model.SearchSuggestion;
@@ -35,6 +43,8 @@ import com.google.android.gms.maps.model.GroundOverlayOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
+import com.google.android.gms.maps.model.Polyline;
+import com.google.android.gms.maps.model.PolylineOptions;
 
 import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
@@ -90,11 +100,28 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
     private List<Room> mSuggestions = new ArrayList<>();
 
+    private DrawerLayout mDrawerLayout;
+
+    private TextView textView;
+    private TextView textView1;
+
+    private Room a = new Room(8.0, 3.4);
+    private Room b = new Room(16.0, 3.5);
+    private Room c = new Room(8.6, 1.97);
+    private Room d = new Room(14.6, 1.95);
+
+    Polyline line;
+
+    List<LatLng> latLngs = new ArrayList<LatLng>();
+
+    long timeOut = 3000;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
         getSupportActionBar().hide();
+        mDrawerLayout = findViewById(R.id.drawer_layout);
         db = new DBManager(this);
         SystemRequirementsChecker.checkWithDefaultDialogs(this);
         beaconManager = BeaconManager.getInstanceForApplication(this);
@@ -111,6 +138,35 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
         rdb = new RoomDBManager(this);
         mSuggestions = rdb.getListRoom();
+
+        textView = (TextView)findViewById(R.id.direction);
+        textView1 = (TextView) findViewById(R.id.room_title);
+        textView.setVisibility(View.INVISIBLE);
+        textView1.setVisibility(View.INVISIBLE);
+        NavigationView navigationView = findViewById(R.id.nav_view);
+        navigationView.setNavigationItemSelectedListener(
+                new NavigationView.OnNavigationItemSelectedListener() {
+                    @Override
+                    public boolean onNavigationItemSelected(MenuItem menuItem) {
+
+                        int id = menuItem.getItemId();
+                        switch (id) {
+                            case R.id.setting:
+                                Intent intent = new Intent(MainActivity.this, PointManager.class);
+                                startActivity(intent);
+                                break;
+                            case R.id.room:
+                                Intent intent1 = new Intent(MainActivity.this, RoomManager.class);
+                                startActivity(intent1);
+                                break;
+                        }
+                        // set item as selected to persist highlight
+                        menuItem.setChecked(true);
+                        // close drawer when item is tapped
+                        mDrawerLayout.closeDrawers();
+                        return false;
+                    }
+                });
         final FloatingSearchView searchView= (FloatingSearchView) findViewById(R.id.floating_search_view);
 
         searchView.setOnQueryChangeListener(new FloatingSearchView.OnQueryChangeListener() {
@@ -118,8 +174,14 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
             public void onSearchTextChanged(String oldQuery, String newQuery) {
                 if (!oldQuery.equals("") && newQuery.equals("")) {
                     searchView.clearSuggestions();
+                    if(roomMaker != null)
                     roomMaker.remove();
+                    if(line!= null) line.remove();
+                    latLngs.clear();
+                    textView.setVisibility(View.INVISIBLE);
+                    textView1.setVisibility(View.INVISIBLE);
                 } else {
+                    searchView.setClearBtnColor(Color.GRAY);
                     searchView.showProgress();
                     searchView.swapSuggestions(getSuggestion(newQuery));
                     searchView.hideProgress();
@@ -141,17 +203,59 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         searchView.setOnSearchListener(new FloatingSearchView.OnSearchListener() {
             @Override
             public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
-                Room suggestion= (Room) searchSuggestion;
+                final Room suggestion= (Room) searchSuggestion;
                 searchView.setSearchText(suggestion.getBody());
                 searchView.clearSearchFocus();
                 if(roomMaker != null){
                     roomMaker.remove();
+                    if(line!= null) line.remove();
+                    latLngs.clear();
+                    textView.setVisibility(View.INVISIBLE);
+                    textView1.setVisibility(View.INVISIBLE);
                 }
                 MarkerOptions markerOptions = new MarkerOptions();
                 //MarkerOptions markerOptions = new MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.drawable.icon));
                 roomMaker = mMap.addMarker(markerOptions.position(croodToLatLng(suggestion.getX(), suggestion.getY())));
-                roomMaker.setTitle(suggestion.getTitle() + " " + suggestion.getDescription());
+                roomMaker.setTitle(suggestion.getTitle());
                 roomMaker.showInfoWindow();
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(croodToLatLng(suggestion.getX(), suggestion.getY()), 22));
+                textView1.setText(suggestion.getTitle() + " " + suggestion.getDescription());
+                textView.setVisibility(View.VISIBLE);
+                textView1.setVisibility(View.VISIBLE);
+                textView.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        if(line!= null) line.remove();
+                        latLngs.clear();
+                        if(mlocation!= null)
+                        {
+
+                            //latLngs.add(croodToLatLng(mlocation.getxCoord(), mlocation.getyCoord()));
+                            if(suggestion.getId() == 4 ||suggestion.getId() == 5 || suggestion.getId() == 8 ) {
+                                latLngs.add(croodToLatLng(suggestion.getX(), suggestion.getY()));
+                                latLngs.add(croodToLatLng(a.getX(), a.getY()));
+                                latLngs.add(croodToLatLng(c.getX(), c.getY()));
+
+                            }
+                            else if(suggestion.getId() == 3 ||suggestion.getId() == 6 || suggestion.getId() == 7 ){
+                                latLngs.add(croodToLatLng(suggestion.getX(), suggestion.getY()));
+                                latLngs.add(croodToLatLng(b.getX(), b.getY()));
+                                latLngs.add(croodToLatLng(d.getX(), d.getY()));
+                            }
+                            else {
+                                latLngs.add(croodToLatLng(suggestion.getX(), suggestion.getY()));
+                            }
+                            getDirections(mlocation, latLngs);
+                        }
+                        else
+                        {
+                            Toast.makeText(MainActivity.this, "Can't find your location for direction", Toast.LENGTH_SHORT).show();
+                        }
+                        //using dijkstra to find direction
+                        //draw shortest path on map
+
+                    }
+                });
 
             }
 
@@ -160,7 +264,16 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
             }
         });
-       // searchView.attachNavigationDrawerToMenuButton(mDrawerLayout);
+        searchView.attachNavigationDrawerToMenuButton(mDrawerLayout);
+    }
+    private void getDirections(IBeacon iBeacon, List<LatLng> list){
+        list.add(croodToLatLng(iBeacon.getxCoord(), iBeacon.getyCoord()));
+        PolylineOptions options = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
+        for (int i = 0; i < list.size(); i++) {
+            LatLng point = list.get(i);
+            options.add(point);
+        }
+        line = mMap.addPolyline(options);
     }
 
     private List<Room> getSuggestion(String query){
@@ -182,6 +295,16 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         mGroundOverlay = mMap.addGroundOverlay(new GroundOverlayOptions()
                 .image(mImages.get(mCurrentEntry)).anchor(0,1)
                 .position(G2, 49.5f,30f));
+        /*Polyline line = mMap.addPolyline(new PolylineOptions()
+                .add(G2, new LatLng(21.037951, 105.783164))
+                .width(10)
+                .color(Color.RED));*/
+        /*PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
+        for (int z = 0; z < list.size(); z++) {
+            LatLng point = list.get(z);
+            options.add(point);
+        }
+        line = myMap.addPolyline(options);*/
     }
 
     public LatLng convertToLatLng(IBeacon ilocation) {
@@ -234,6 +357,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         });
         beaconManager.removeAllRangeNotifiers();
         beaconManager.addRangeNotifier(new RangeNotifier() {
+            long startTime = System.currentTimeMillis();
             @Override
             public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
             if(beacons.size()>0){
@@ -261,11 +385,26 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                                 beaconList.get(0).getRssi(), beaconList.get(1).getRssi(), beaconList.get(2).getRssi());
                         Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getxCoord()) + ", " + String.valueOf(newLocation.getyCoord()) + ")");
                         mlocation = newLocation;
+
+                        Boolean check = false;
                         if(marker != null){
-                            marker.remove();
+                            long elapsed = System.currentTimeMillis() - startTime;
+                            if (elapsed >= timeOut) {
+                                marker.remove();
+                                check = true;
+                            }
                         }
-                        MarkerOptions markerOptions = new MarkerOptions();
-                        marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
+                        if(marker == null || check) {
+                            MarkerOptions markerOptions = new MarkerOptions();
+                            marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
+                        }
+                        if(line!= null){
+                            line.remove();
+                            if(latLngs.size()!=0) {
+                                latLngs.remove(latLngs.size() - 1);
+                                getDirections(mlocation, latLngs);
+                            }
+                        }
                     }
                 }
             }
