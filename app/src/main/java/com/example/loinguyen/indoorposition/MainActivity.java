@@ -1,20 +1,10 @@
 package com.example.loinguyen.indoorposition;
 
-import android.content.Context;
 import android.content.Intent;
-import android.graphics.Bitmap;
-import android.graphics.Canvas;
 import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.os.RemoteException;
 import android.os.Bundle;
-import android.support.annotation.ColorInt;
-import android.support.annotation.DrawableRes;
-import android.support.annotation.NonNull;
 import android.support.design.widget.NavigationView;
-import android.support.v4.content.ContextCompat;
-import android.support.v4.content.res.ResourcesCompat;
-import android.support.v4.graphics.drawable.DrawableCompat;
 import android.support.v4.widget.DrawerLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
@@ -22,16 +12,15 @@ import android.view.MenuItem;
 import android.view.View;
 import android.widget.TextView;
 import android.widget.Toast;
-
 import com.arlib.floatingsearchview.FloatingSearchView;
 import com.arlib.floatingsearchview.suggestions.model.SearchSuggestion;
-import com.directions.route.Routing;
-import com.directions.route.RoutingListener;
 import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
+import com.example.loinguyen.indoorposition.Adapter.Directions.Dijkstra;
+import com.example.loinguyen.indoorposition.Adapter.Directions.Edge;
+import com.example.loinguyen.indoorposition.Adapter.Directions.Vertex;
 import com.example.loinguyen.indoorposition.Bean.IBeacon;
 import com.example.loinguyen.indoorposition.Bean.Room;
 import com.example.loinguyen.indoorposition.Database.DBManager;
-import com.example.loinguyen.indoorposition.Database.RoomDBManager;
 import com.google.android.gms.maps.CameraUpdateFactory;
 import com.google.android.gms.maps.GoogleMap;
 import com.google.android.gms.maps.OnMapReadyCallback;
@@ -45,7 +34,6 @@ import com.google.android.gms.maps.model.Marker;
 import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.android.gms.maps.model.Polyline;
 import com.google.android.gms.maps.model.PolylineOptions;
-
 import org.altbeacon.beacon.Beacon;
 import org.altbeacon.beacon.BeaconConsumer;
 import org.altbeacon.beacon.BeaconManager;
@@ -54,22 +42,20 @@ import org.altbeacon.beacon.Identifier;
 import org.altbeacon.beacon.MonitorNotifier;
 import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
-
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
-public class MainActivity extends AppCompatActivity implements BeaconConsumer,OnMapReadyCallback,
+public class MainActivity extends AppCompatActivity implements BeaconConsumer, OnMapReadyCallback,
     GoogleMap.OnGroundOverlayClickListener{
 
     private GoogleMap mMap;
 
     private static final LatLng G2 = new LatLng(21.037926, 105.783139);
 
-    private static final LatLng NEAR_NEWARK =
-            new LatLng(G2.latitude - 0.001, G2.longitude - 0.025);
+    private static final LatLng NEAR_NEWARK = new LatLng(G2.latitude - 0.001, G2.longitude - 0.025);
 
     private final List<BitmapDescriptor> mImages = new ArrayList<BitmapDescriptor>();
 
@@ -81,8 +67,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
     private int mCurrentEntry = 0;
 
-    private static final String TAG = "Beacon Scanner";
-    private static final String LOCATION_TAG = "Finding Location: ";
+    private static final String TAG = "Beacon";
+    private static final String LOCATION_TAG = "Location: ";
     private static final String UNIQUE_ID = "com.example.loinguyen.indoorposition";
     private static final String PROXIMITY_UUID = "B9407F30-F5F8-466E-AFF9-25556B57FE6D";
 
@@ -94,16 +80,14 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
 
     DBManager db;
 
-    RoomDBManager rdb;
-
     IBeacon mlocation;
 
     private List<Room> mSuggestions = new ArrayList<>();
 
     private DrawerLayout mDrawerLayout;
 
-    private TextView textView;
-    private TextView textView1;
+    private TextView direction;
+    private TextView information;
 
     private Room a = new Room(8.0, 3.4);
     private Room b = new Room(16.0, 3.5);
@@ -136,38 +120,46 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        rdb = new RoomDBManager(this);
-        mSuggestions = rdb.getListRoom();
+        //dijkstra
+        List<IBeacon> iBeacons = db.getAllIbeacons();
+        System.out.println("all beacons: " + iBeacons.size());
+        
 
-        textView = (TextView)findViewById(R.id.direction);
-        textView1 = (TextView) findViewById(R.id.room_title);
-        textView.setVisibility(View.INVISIBLE);
-        textView1.setVisibility(View.INVISIBLE);
+        //search room
+        mSuggestions = db.getListRoom();
+        System.out.println("all rooms: " + mSuggestions.size());
+
+        direction = (TextView)findViewById(R.id.direction);
+        information = (TextView) findViewById(R.id.room_title);
+        direction.setVisibility(View.INVISIBLE);
+        information.setVisibility(View.INVISIBLE);
+
         NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(
-                new NavigationView.OnNavigationItemSelectedListener() {
-                    @Override
-                    public boolean onNavigationItemSelected(MenuItem menuItem) {
+            new NavigationView.OnNavigationItemSelectedListener() {
+                @Override
+                public boolean onNavigationItemSelected(MenuItem menuItem) {
 
-                        int id = menuItem.getItemId();
-                        switch (id) {
-                            case R.id.setting:
-                                Intent intent = new Intent(MainActivity.this, PointManager.class);
-                                startActivity(intent);
-                                break;
-                            case R.id.room:
-                                Intent intent1 = new Intent(MainActivity.this, RoomManager.class);
-                                startActivity(intent1);
-                                break;
-                        }
-                        // set item as selected to persist highlight
-                        menuItem.setChecked(true);
-                        // close drawer when item is tapped
-                        mDrawerLayout.closeDrawers();
-                        return false;
+                    int id = menuItem.getItemId();
+                    switch (id) {
+                        case R.id.setting:
+                            Intent intent = new Intent(MainActivity.this, PointManager.class);
+                            startActivity(intent);
+                            break;
+                        case R.id.room:
+                            Intent intent1 = new Intent(MainActivity.this, RoomManager.class);
+                            startActivity(intent1);
+                            break;
                     }
-                });
-        final FloatingSearchView searchView= (FloatingSearchView) findViewById(R.id.floating_search_view);
+                    // set item as selected to persist highlight
+                    menuItem.setChecked(true);
+                    // close drawer when item is tapped
+                    mDrawerLayout.closeDrawers();
+                    return false;
+                }
+            });
+
+        final FloatingSearchView searchView = (FloatingSearchView) findViewById(R.id.floating_search_view);
 
         searchView.setOnQueryChangeListener(new FloatingSearchView.OnQueryChangeListener() {
             @Override
@@ -178,8 +170,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                     roomMaker.remove();
                     if(line!= null) line.remove();
                     latLngs.clear();
-                    textView.setVisibility(View.INVISIBLE);
-                    textView1.setVisibility(View.INVISIBLE);
+                    direction.setVisibility(View.INVISIBLE);
+                    information.setVisibility(View.INVISIBLE);
                 } else {
                     searchView.setClearBtnColor(Color.GRAY);
                     searchView.showProgress();
@@ -188,6 +180,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                 }
             }
         });
+
         searchView.setOnFocusChangeListener(new FloatingSearchView.OnFocusChangeListener() {
             @Override
             public void onFocus() {
@@ -200,6 +193,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
             public void onFocusCleared() {
             }
         });
+
         searchView.setOnSearchListener(new FloatingSearchView.OnSearchListener() {
             @Override
             public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
@@ -210,40 +204,39 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                     roomMaker.remove();
                     if(line!= null) line.remove();
                     latLngs.clear();
-                    textView.setVisibility(View.INVISIBLE);
-                    textView1.setVisibility(View.INVISIBLE);
+                    direction.setVisibility(View.INVISIBLE);
+                    information.setVisibility(View.INVISIBLE);
                 }
                 MarkerOptions markerOptions = new MarkerOptions();
-                //MarkerOptions markerOptions = new MarkerOptions().icon(BitmapDescriptorFactory.fromResource(R.drawable.icon));
-                roomMaker = mMap.addMarker(markerOptions.position(croodToLatLng(suggestion.getX(), suggestion.getY())));
+                roomMaker = mMap.addMarker(markerOptions.position(convertToLatLng(suggestion.getX(), suggestion.getY())));
                 roomMaker.setTitle(suggestion.getTitle());
                 roomMaker.showInfoWindow();
-                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(croodToLatLng(suggestion.getX(), suggestion.getY()), 22));
-                textView1.setText(suggestion.getTitle() + " " + suggestion.getDescription());
-                textView.setVisibility(View.VISIBLE);
-                textView1.setVisibility(View.VISIBLE);
-                textView.setOnClickListener(new View.OnClickListener() {
+                mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(convertToLatLng(suggestion.getX(), suggestion.getY()), 22));
+                information.setText(suggestion.getTitle() + " " + suggestion.getDescription());
+                direction.setVisibility(View.VISIBLE);
+                information.setVisibility(View.VISIBLE);
+                direction.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
                         if(line!= null) line.remove();
                         latLngs.clear();
+                        //using dijkstra to find direction
+                        //draw shortest path on map
                         if(mlocation!= null)
                         {
-
-                            //latLngs.add(croodToLatLng(mlocation.getxCoord(), mlocation.getyCoord()));
                             if(suggestion.getId() == 4 ||suggestion.getId() == 5 || suggestion.getId() == 8 ) {
-                                latLngs.add(croodToLatLng(suggestion.getX(), suggestion.getY()));
-                                latLngs.add(croodToLatLng(a.getX(), a.getY()));
-                                latLngs.add(croodToLatLng(c.getX(), c.getY()));
+                                latLngs.add(convertToLatLng(suggestion.getX(), suggestion.getY()));
+                                latLngs.add(convertToLatLng(a.getX(), a.getY()));
+                                latLngs.add(convertToLatLng(c.getX(), c.getY()));
 
                             }
                             else if(suggestion.getId() == 3 ||suggestion.getId() == 6 || suggestion.getId() == 7 ){
-                                latLngs.add(croodToLatLng(suggestion.getX(), suggestion.getY()));
-                                latLngs.add(croodToLatLng(b.getX(), b.getY()));
-                                latLngs.add(croodToLatLng(d.getX(), d.getY()));
+                                latLngs.add(convertToLatLng(suggestion.getX(), suggestion.getY()));
+                                latLngs.add(convertToLatLng(b.getX(), b.getY()));
+                                latLngs.add(convertToLatLng(d.getX(), d.getY()));
                             }
                             else {
-                                latLngs.add(croodToLatLng(suggestion.getX(), suggestion.getY()));
+                                latLngs.add(convertToLatLng(suggestion.getX(), suggestion.getY()));
                             }
                             getDirections(mlocation, latLngs);
                         }
@@ -251,29 +244,69 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                         {
                             Toast.makeText(MainActivity.this, "Can't find your location for direction", Toast.LENGTH_SHORT).show();
                         }
-                        //using dijkstra to find direction
-                        //draw shortest path on map
-
                     }
                 });
-
             }
 
             @Override
-            public void onSearchAction(String currentQuery) {
-
-            }
+            public void onSearchAction(String currentQuery) {}
         });
+
         searchView.attachNavigationDrawerToMenuButton(mDrawerLayout);
-    }
-    private void getDirections(IBeacon iBeacon, List<LatLng> list){
-        list.add(croodToLatLng(iBeacon.getxCoord(), iBeacon.getyCoord()));
-        PolylineOptions options = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
-        for (int i = 0; i < list.size(); i++) {
-            LatLng point = list.get(i);
-            options.add(point);
-        }
-        line = mMap.addPolyline(options);
+
+        /*Vertex A = new Vertex("A");
+        Vertex B = new Vertex("B");
+        Vertex C = new Vertex("C");
+        Vertex D = new Vertex("D");
+        Vertex F = new Vertex("F");
+        Vertex E = new Vertex("E");
+
+        // set the edges and weight
+        A.adjacencies = new Edge[]{ new Edge(B, 10) };
+      //  A.adjacencies = new Edge[]{ new Edge(C, 15) };
+        B.adjacencies = new Edge[]{ new Edge(F, 15) };
+      //  B.adjacencies = new Edge[]{ new Edge(D, 12) };
+        C.adjacencies = new Edge[]{ new Edge(E, 10) };
+        D.adjacencies = new Edge[]{ new Edge(F, 1) };
+      //  D.adjacencies = new Edge[]{ new Edge(E, 2) };
+        F.adjacencies = new Edge[]{ new Edge(E, 5) };
+
+
+        Dijkstra.computePaths(A); // run Dijkstra
+        System.out.println("Distance to " + E + ": " + E.minDistance);
+        List<Vertex> path = Dijkstra.getShortestPathTo(E);
+        System.out.println("Path: " + path);*/
+        Vertex A = new Vertex("A");
+        Vertex B = new Vertex("B");
+        Vertex D = new Vertex("D");
+        Vertex F = new Vertex("F");
+        Vertex K = new Vertex("K");
+        Vertex J = new Vertex("J");
+        Vertex M = new Vertex("M");
+        Vertex O = new Vertex("O");
+        Vertex P = new Vertex("P");
+        Vertex R = new Vertex("R");
+        Vertex Z = new Vertex("Z");
+
+        // set the edges and weight
+        A.adjacencies = new Edge[]{ new Edge(M, 8) };
+        A.adjacencies = new Edge[]{ new Edge(B, 10) };
+        B.adjacencies = new Edge[]{ new Edge(D, 11) };
+        D.adjacencies = new Edge[]{ new Edge(B, 11) };
+        F.adjacencies = new Edge[]{ new Edge(K, 23) };
+        K.adjacencies = new Edge[]{ new Edge(O, 40) };
+        J.adjacencies = new Edge[]{ new Edge(K, 25) };
+        M.adjacencies = new Edge[]{ new Edge(R, 8) };
+        O.adjacencies = new Edge[]{ new Edge(K, 40) };
+        P.adjacencies = new Edge[]{ new Edge(Z, 18) };
+        R.adjacencies = new Edge[]{ new Edge(P, 15) };
+        Z.adjacencies = new Edge[]{ new Edge(P, 18) };
+
+
+        Dijkstra.computePaths(B); // run Dijkstra
+        System.out.println("Distance to " + Z + ": " + Z.minDistance);
+        List<Vertex> path = Dijkstra.getShortestPathTo(Z);
+        System.out.println("Path: " + path);
     }
 
     private List<Room> getSuggestion(String query){
@@ -286,6 +319,16 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         return suggestions;
     }
 
+    private void getDirections(IBeacon iBeacon, List<LatLng> list){
+        list.add(convertToLatLng(iBeacon.getX(), iBeacon.getY()));
+        PolylineOptions options = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
+        for (int i = 0; i < list.size(); i++) {
+            LatLng point = list.get(i);
+            options.add(point);
+        }
+        line = mMap.addPolyline(options);
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -295,6 +338,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         mGroundOverlay = mMap.addGroundOverlay(new GroundOverlayOptions()
                 .image(mImages.get(mCurrentEntry)).anchor(0,1)
                 .position(G2, 49.5f,30f));
+
         /*Polyline line = mMap.addPolyline(new PolylineOptions()
                 .add(G2, new LatLng(21.037951, 105.783164))
                 .width(10)
@@ -305,20 +349,21 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
             options.add(point);
         }
         line = myMap.addPolyline(options);*/
+
     }
 
     public LatLng convertToLatLng(IBeacon ilocation) {
-        double x = ilocation.getxCoord();
-        double y = ilocation.getyCoord();
+        double x = ilocation.getX();
+        double y = ilocation.getY();
         double latitude   = y * 0.00001653846 + 21.037975;
-        double longtitude = x * 0.00001987447 + 105.783142;
-        return new LatLng(latitude, longtitude);
+        double longitude = x * 0.00001987447 + 105.783142;
+        return new LatLng(latitude, longitude);
     }
 
-    public LatLng croodToLatLng(double x, double y) {
+    public LatLng convertToLatLng(double x, double y) {
         double latitude     = y * 0.00001653846 + 21.037975;
-        double longtitude   = x * 0.00001987447 + 105.783142;
-        return new LatLng(latitude, longtitude);
+        double longitude   = x * 0.00001987447 + 105.783142;
+        return new LatLng(latitude, longitude);
     }
 
     @Override
@@ -378,12 +423,14 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
                         return rssi1 > rssi2 ? -1 : 1;
                         }
                     });
+                    
                     String major = String.valueOf(beaconList.get(0).getId2());
+                    
                     // detect location
                     if((db.getListIbeaconByMajor(Integer.valueOf(major))).size()>0) {
-                        IBeacon newLocation = selectpoint(db.getListIbeaconByMajor(Integer.valueOf(major)),
+                        IBeacon newLocation = selectPoint(db.getListIbeaconByMajor(Integer.valueOf(major)),
                                 beaconList.get(0).getRssi(), beaconList.get(1).getRssi(), beaconList.get(2).getRssi());
-                        Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getxCoord()) + ", " + String.valueOf(newLocation.getyCoord()) + ")");
+                        Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getX()) + ", " + String.valueOf(newLocation.getY()) + ")");
                         mlocation = newLocation;
 
                         Boolean check = false;
@@ -427,17 +474,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
     protected void onResume() {
         super.onResume();
     }
-
-
-    /**
-     * return ibeacon have location nearest
-     * @param iBeaconList list of beacon have major same major nearest
-     * @param rssi1
-     * @param rssi2
-     * @param rssi3
-     * @return ibeacon have location nearest
-     */
-    public IBeacon selectpoint(List<IBeacon> iBeaconList, double rssi1, double rssi2, double rssi3){
+    
+    public IBeacon selectPoint(List<IBeacon> iBeaconList, double rssi1, double rssi2, double rssi3){
         IBeacon iBeacon = new IBeacon();
         double d1 = 0, d2 = 0, d3 = 0, d = 0;
         ArrayList<IBeacon> trustBeacon = new ArrayList<IBeacon>();
@@ -461,7 +499,5 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer,On
         iBeacon = iBeaconList.get(indexOfMinimum);
         return iBeacon;
     }
-
-
 
 }
