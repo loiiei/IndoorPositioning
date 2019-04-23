@@ -3,11 +3,13 @@
     <group android:checkableBehavior="single">
         <item
             android:id="@+id/setting"
-            android:icon="@drawable/ic_setting"
-            android:title="Point Manager" />
+            android:icon="@drawable/list"
+            android:title="Beacons Manager" />
         <item
-        android:id="@+id/room"
-        android:icon="@drawable/ic_room"
-        android:title="Room Manager" />
+        android:id="@+id/custom"
+        android:icon="@drawable/ic_setting"
+        android:title="Custom Search" />
+
     </group>
+
 </menu>

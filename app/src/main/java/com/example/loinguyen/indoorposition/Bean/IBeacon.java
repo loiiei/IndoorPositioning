@@ -9,7 +9,8 @@ public class IBeacon implements Serializable {
     private double rssi1;
     private double rssi2;
     private double rssi3;
-    private int Major;
+    private int major;
+    private int roomid;
     public IBeacon()
     {
 
@@ -20,17 +21,18 @@ public class IBeacon implements Serializable {
         this.rssi1 = rssi1;
         this.rssi2 = rssi2;
         this.rssi3 = rssi3;
-        Major = major;
+        this.major = major;
     }
 
-    public IBeacon(int id, double x, double y, float rssi1, float rssi2, float rssi3, int major) {
+    public IBeacon(int id, double x, double y, float rssi1, float rssi2, float rssi3, int major, int roomid) {
         this.id = id;
         this.x = x;
         this.y = y;
         this.rssi1 = rssi1;
         this.rssi2 = rssi2;
         this.rssi3 = rssi3;
-        Major = major;
+        this.major = major;
+        this.roomid = roomid;
     }
 
     public int getId() {
@@ -82,10 +84,18 @@ public class IBeacon implements Serializable {
     }
 
     public int getMajor() {
-        return Major;
+        return this.major;
     }
 
     public void setMajor(int major) {
-        Major = major;
+        this.major = major;
+    }
+
+    public int getRoomid() {
+        return roomid;
+    }
+
+    public void setRoomid(int roomid) {
+        this.roomid = roomid;
     }
 }

@@ -15,9 +15,8 @@ import android.widget.Toast;
 import com.arlib.floatingsearchview.FloatingSearchView;
 import com.arlib.floatingsearchview.suggestions.model.SearchSuggestion;
 import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
-import com.example.loinguyen.indoorposition.Adapter.Directions.Dijkstra;
-import com.example.loinguyen.indoorposition.Adapter.Directions.Edge;
-import com.example.loinguyen.indoorposition.Adapter.Directions.Vertex;
+import com.example.loinguyen.indoorposition.Adapter.Layouts.BeaconAdapter;
+import com.example.loinguyen.indoorposition.Bean.Dep;
 import com.example.loinguyen.indoorposition.Bean.IBeacon;
 import com.example.loinguyen.indoorposition.Bean.Room;
 import com.example.loinguyen.indoorposition.Database.DBManager;
@@ -47,6 +46,13 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
+
+import es.usc.citius.hipster.algorithm.Hipster;
+import es.usc.citius.hipster.graph.GraphBuilder;
+import es.usc.citius.hipster.graph.GraphSearchProblem;
+import es.usc.citius.hipster.graph.HipsterDirectedGraph;
+import es.usc.citius.hipster.graph.HipsterGraph;
+import es.usc.citius.hipster.model.problem.SearchProblem;
 
 public class MainActivity extends AppCompatActivity implements BeaconConsumer, OnMapReadyCallback,
     GoogleMap.OnGroundOverlayClickListener{
@@ -89,16 +95,17 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
     private TextView direction;
     private TextView information;
 
-    private Room a = new Room(8.0, 3.4);
-    private Room b = new Room(16.0, 3.5);
-    private Room c = new Room(8.6, 1.97);
-    private Room d = new Room(14.6, 1.95);
-
     Polyline line;
 
     List<LatLng> latLngs = new ArrayList<LatLng>();
 
     long timeOut = 3000;
+    List<IBeacon> iBeacons = new ArrayList<IBeacon>();
+    List<Dep> deps = new ArrayList<Dep>();
+
+    private int tempRoom;
+
+    public BeaconAdapter beaconAdapter;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -121,14 +128,16 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         mapFragment.getMapAsync(this);
 
         //dijkstra
-        List<IBeacon> iBeacons = db.getAllIbeacons();
+        iBeacons = db.getAllIbeacons();
         System.out.println("all beacons: " + iBeacons.size());
         
 
         //search room
         mSuggestions = db.getListRoom();
-        System.out.println("all rooms: " + mSuggestions.size());
-
+      //  System.out.println("all rooms: " + mSuggestions.size());
+        deps = db.getListDep();
+        System.out.println("all deps: " + deps.size());
+        System.out.println("Dijkstra direction: " + getDirection(7, 24));
         direction = (TextView)findViewById(R.id.direction);
         information = (TextView) findViewById(R.id.room_title);
         direction.setVisibility(View.INVISIBLE);
@@ -143,12 +152,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     int id = menuItem.getItemId();
                     switch (id) {
                         case R.id.setting:
-                            Intent intent = new Intent(MainActivity.this, PointManager.class);
+                            Intent intent = new Intent(MainActivity.this, BeaconActivity.class);
                             startActivity(intent);
-                            break;
-                        case R.id.room:
-                            Intent intent1 = new Intent(MainActivity.this, RoomManager.class);
-                            startActivity(intent1);
                             break;
                     }
                     // set item as selected to persist highlight
@@ -170,6 +175,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     roomMaker.remove();
                     if(line!= null) line.remove();
                     latLngs.clear();
+                    tempRoom = 0;
                     direction.setVisibility(View.INVISIBLE);
                     information.setVisibility(View.INVISIBLE);
                 } else {
@@ -200,13 +206,21 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 final Room suggestion= (Room) searchSuggestion;
                 searchView.setSearchText(suggestion.getBody());
                 searchView.clearSearchFocus();
-                if(roomMaker != null){
+                if(roomMaker != null) {
                     roomMaker.remove();
-                    if(line!= null) line.remove();
+                    if (line != null) line.remove();
                     latLngs.clear();
+                    tempRoom = 0;
                     direction.setVisibility(View.INVISIBLE);
                     information.setVisibility(View.INVISIBLE);
                 }
+                for (IBeacon iBeacon: iBeacons) {
+                        if(iBeacon.getRoomid() == suggestion.getId()){
+                        suggestion.setX(iBeacon.getX());
+                        suggestion.setY(iBeacon.getY());
+                    }
+                }
+
                 MarkerOptions markerOptions = new MarkerOptions();
                 roomMaker = mMap.addMarker(markerOptions.position(convertToLatLng(suggestion.getX(), suggestion.getY())));
                 roomMaker.setTitle(suggestion.getTitle());
@@ -220,25 +234,16 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     public void onClick(View v) {
                         if(line!= null) line.remove();
                         latLngs.clear();
+                        tempRoom = 0;
                         //using dijkstra to find direction
                         //draw shortest path on map
-                        if(mlocation!= null)
+                        if(mlocation!= null && deps.size() > 0)
                         {
-                            if(suggestion.getId() == 4 ||suggestion.getId() == 5 || suggestion.getId() == 8 ) {
-                                latLngs.add(convertToLatLng(suggestion.getX(), suggestion.getY()));
-                                latLngs.add(convertToLatLng(a.getX(), a.getY()));
-                                latLngs.add(convertToLatLng(c.getX(), c.getY()));
-
-                            }
-                            else if(suggestion.getId() == 3 ||suggestion.getId() == 6 || suggestion.getId() == 7 ){
-                                latLngs.add(convertToLatLng(suggestion.getX(), suggestion.getY()));
-                                latLngs.add(convertToLatLng(b.getX(), b.getY()));
-                                latLngs.add(convertToLatLng(d.getX(), d.getY()));
-                            }
-                            else {
-                                latLngs.add(convertToLatLng(suggestion.getX(), suggestion.getY()));
-                            }
-                            getDirections(mlocation, latLngs);
+                            tempRoom = suggestion.getId();
+                            List<List> path = getDirection(mlocation.getId(), tempRoom);
+                            List<String> optimalPath = path.get(0);
+                            latLngs = getOptimalPathDirection(iBeacons, optimalPath);
+                            getDirections(latLngs);
                         }
                         else
                         {
@@ -247,66 +252,82 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     }
                 });
             }
-
             @Override
             public void onSearchAction(String currentQuery) {}
         });
 
         searchView.attachNavigationDrawerToMenuButton(mDrawerLayout);
 
-        /*Vertex A = new Vertex("A");
-        Vertex B = new Vertex("B");
-        Vertex C = new Vertex("C");
-        Vertex D = new Vertex("D");
-        Vertex F = new Vertex("F");
-        Vertex E = new Vertex("E");
 
-        // set the edges and weight
-        A.adjacencies = new Edge[]{ new Edge(B, 10) };
-      //  A.adjacencies = new Edge[]{ new Edge(C, 15) };
-        B.adjacencies = new Edge[]{ new Edge(F, 15) };
-      //  B.adjacencies = new Edge[]{ new Edge(D, 12) };
-        C.adjacencies = new Edge[]{ new Edge(E, 10) };
-        D.adjacencies = new Edge[]{ new Edge(F, 1) };
-      //  D.adjacencies = new Edge[]{ new Edge(E, 2) };
-        F.adjacencies = new Edge[]{ new Edge(E, 5) };
+    }
+    public List<LatLng> getOptimalPathDirection(List<IBeacon> iBeacons, List<String> optimalPath)
+    {
+        List<LatLng> latLngs = new ArrayList<LatLng>();
+        for(int i = 0; i < optimalPath.size(); i++)
+        {
+//            for(IBeacon iBeacon: iBeacons){
+//                if(iBeacon.getId() ==  Integer.valueOf(optimalPath.get(i))) latLngs.add(convertToLatLng(iBeacon));
+//            }
+            latLngs.add(convertToLatLng(iBeacons.get(i - 1)));
+        }
+        return latLngs;
+    }
+
+    public List<List> getDirection(int start, int target)
+    {
+//        HipsterGraph<String,Double> graph =
+//                GraphBuilder.<String,Double>create()
+//                        .connect("1").to("20").withEdge(1.42948)
+//                        .connect("1").to("2").withEdge(0.94)
+//                        .connect("1").to("4").withEdge(2.35)
+//                        .connect("2").to("20").withEdge(1.42948)
+//                        .connect("2").to("3").withEdge(2.35)
+//                        .connect("2").to("9").withEdge(2.0782)
+//                        .connect("3").to("6").withEdge(2.35)
+//                        .connect("4").to("5").withEdge(2.35)
+//                        .connect("5").to("12").withEdge(2.05448)
+//                        .connect("5").to("7").withEdge(3.2172)
+//                        .connect("6").to("7").withEdge(2.5488)
+//                        .connect("7").to("12").withEdge(2.05)
+//                        .connect("7").to("8").withEdge(1.7)
+//                        .connect("7").to("25").withEdge(3.95127)
+//                        .connect("7").to("11").withEdge(5.0)
+//                        .connect("8").to("25").withEdge(2.54804)
+//                        .connect("8").to("14").withEdge(2.64622)
+//                        .connect("8").to("15").withEdge(3.46013)
+//                        .connect("8").to("22").withEdge(2.4)
+//                        .connect("9").to("10").withEdge(1.7)
+//                        .connect("9").to("24").withEdge(3.95127)
+//                        .connect("9").to("11").withEdge(5.0)
+//                        .connect("10").to("19").withEdge(2.64622)
+//                        .connect("10").to("24").withEdge(2.54804)
+//                        .connect("10").to("18").withEdge(2.05244)
+//                        .connect("12").to("13").withEdge(3.9)
+//                        .connect("14").to("15").withEdge(1.78466)
+//                        .connect("15").to("16").withEdge(2.28)
+//                        .connect("15").to("17").withEdge(4.35)
+//                        .connect("20").to("9").withEdge(2.05)
+//                        .connect("20").to("21").withEdge(3.9)
+//                        .createUndirectedGraph();
 
 
-        Dijkstra.computePaths(A); // run Dijkstra
-        System.out.println("Distance to " + E + ": " + E.minDistance);
-        List<Vertex> path = Dijkstra.getShortestPathTo(E);
-        System.out.println("Path: " + path);*/
-        Vertex A = new Vertex("A");
-        Vertex B = new Vertex("B");
-        Vertex D = new Vertex("D");
-        Vertex F = new Vertex("F");
-        Vertex K = new Vertex("K");
-        Vertex J = new Vertex("J");
-        Vertex M = new Vertex("M");
-        Vertex O = new Vertex("O");
-        Vertex P = new Vertex("P");
-        Vertex R = new Vertex("R");
-        Vertex Z = new Vertex("Z");
+        HipsterGraph<String,Double> graph = null;
+        GraphBuilder<String, Double> graphBuilder = GraphBuilder.<String, Double>create();
+        for (int i = 0; i < deps.size(); i++) {
+            graphBuilder
+                    .connect(String.valueOf(deps.get(i).getStart()))
+                    .to(String.valueOf(deps.get(i).getTarget())).withEdge(deps.get(i).getDistance());
+        }
+        graph= graphBuilder.createUndirectedGraph();
+        SearchProblem p = GraphSearchProblem
+                .startingFrom(String.valueOf(start))
+                .in(graph)
+                .takeCostsFromEdges()
+                .build();
 
-        // set the edges and weight
-        A.adjacencies = new Edge[]{ new Edge(M, 8) };
-        A.adjacencies = new Edge[]{ new Edge(B, 10) };
-        B.adjacencies = new Edge[]{ new Edge(D, 11) };
-        D.adjacencies = new Edge[]{ new Edge(B, 11) };
-        F.adjacencies = new Edge[]{ new Edge(K, 23) };
-        K.adjacencies = new Edge[]{ new Edge(O, 40) };
-        J.adjacencies = new Edge[]{ new Edge(K, 25) };
-        M.adjacencies = new Edge[]{ new Edge(R, 8) };
-        O.adjacencies = new Edge[]{ new Edge(K, 40) };
-        P.adjacencies = new Edge[]{ new Edge(Z, 18) };
-        R.adjacencies = new Edge[]{ new Edge(P, 15) };
-        Z.adjacencies = new Edge[]{ new Edge(P, 18) };
+        // Search the shortest path from start to target
+        return Hipster.createDijkstra(p).search(String.valueOf(target)).getOptimalPaths();
 
-
-        Dijkstra.computePaths(B); // run Dijkstra
-        System.out.println("Distance to " + Z + ": " + Z.minDistance);
-        List<Vertex> path = Dijkstra.getShortestPathTo(Z);
-        System.out.println("Path: " + path);
     }
 
     private List<Room> getSuggestion(String query){
@@ -329,6 +350,15 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         line = mMap.addPolyline(options);
     }
 
+    private void getDirections(List<LatLng> list){
+        PolylineOptions options = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
+        for (int i = 0; i < list.size(); i++) {
+            LatLng point = list.get(i);
+            options.add(point);
+        }
+        line = mMap.addPolyline(options);
+    }
+
     @Override
     public void onMapReady(GoogleMap googleMap) {
         mMap = googleMap;
@@ -338,18 +368,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         mGroundOverlay = mMap.addGroundOverlay(new GroundOverlayOptions()
                 .image(mImages.get(mCurrentEntry)).anchor(0,1)
                 .position(G2, 49.5f,30f));
-
-        /*Polyline line = mMap.addPolyline(new PolylineOptions()
-                .add(G2, new LatLng(21.037951, 105.783164))
-                .width(10)
-                .color(Color.RED));*/
-        /*PolylineOptions options = new PolylineOptions().width(5).color(Color.BLUE).geodesic(true);
-        for (int z = 0; z < list.size(); z++) {
-            LatLng point = list.get(z);
-            options.add(point);
-        }
-        line = myMap.addPolyline(options);*/
-
     }
 
     public LatLng convertToLatLng(IBeacon ilocation) {
@@ -404,12 +422,13 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         beaconManager.addRangeNotifier(new RangeNotifier() {
             long startTime = System.currentTimeMillis();
             @Override
-            public void didRangeBeaconsInRegion(Collection<Beacon> beacons, Region region) {
+            public void didRangeBeaconsInRegion(final Collection<Beacon> beacons, Region region) {
             if(beacons.size()>0){
                 beaconList.clear();
                 for(final Beacon beacon: beacons) {
                     Log.d(TAG, beacon.getId2().toString());
                     beaconList.add(beacon);
+
                 }
                 Log.d(TAG, String.valueOf(beaconList.size()));
                 if(beaconList.size() >= 3)
@@ -445,15 +464,24 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                             MarkerOptions markerOptions = new MarkerOptions();
                             marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
                         }
-                        if(line!= null){
+                        if(line!= null && tempRoom != 0){
                             line.remove();
-                            if(latLngs.size()!=0) {
-                                latLngs.remove(latLngs.size() - 1);
-                                getDirections(mlocation, latLngs);
-                            }
+                            //in process find path
+                            List<List> path = getDirection(mlocation.getId(), tempRoom);
+                            List<String> optimalPath = path.get(0);
+                            latLngs = getOptimalPathDirection(iBeacons,optimalPath);
+                            getDirections(latLngs);
                         }
                     }
                 }
+//                for(Beacon beacon: beacons) {
+//                    runOnUiThread(new Runnable() {
+//                        @Override
+//                        public void run() {
+//                            beaconAdapter.initAll(beacons);
+//                        }
+//                    });
+//                }
             }
             }
         });
