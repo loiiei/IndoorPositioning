@@ -127,22 +127,21 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 .findFragmentById(R.id.map);
         mapFragment.getMapAsync(this);
 
-        //dijkstra
         iBeacons = db.getAllIbeacons();
         System.out.println("all beacons: " + iBeacons.size());
         
 
         //search room
         mSuggestions = db.getListRoom();
-      //  System.out.println("all rooms: " + mSuggestions.size());
         deps = db.getListDep();
-        System.out.println("all deps: " + deps.size());
-        System.out.println("Dijkstra direction: " + getDirection(7, 24));
+//        System.out.println("all deps: " + deps.size());
+//        System.out.println("Dijkstra direction: " + getDirection(7, 24));
         direction = (TextView)findViewById(R.id.direction);
         information = (TextView) findViewById(R.id.room_title);
         direction.setVisibility(View.INVISIBLE);
         information.setVisibility(View.INVISIBLE);
 
+        //Navigation
         NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(
             new NavigationView.OnNavigationItemSelectedListener() {
@@ -163,6 +162,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     return false;
                 }
             });
+
+
 
         final FloatingSearchView searchView = (FloatingSearchView) findViewById(R.id.floating_search_view);
 
@@ -194,7 +195,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 searchView.swapSuggestions(getSuggestion(searchView.getQuery()));
                 searchView.hideProgress();
             }
-
             @Override
             public void onFocusCleared() {
             }
@@ -260,6 +260,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
 
 
     }
+
+    // get list latitude, longitude optimal paths
     public List<LatLng> getOptimalPathDirection(List<IBeacon> iBeacons, List<String> optimalPath)
     {
         List<LatLng> latLngs = new ArrayList<LatLng>();
@@ -273,44 +275,9 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         return latLngs;
     }
 
+    // get Optimal Paths using dijkstra
     public List<List> getDirection(int start, int target)
     {
-//        HipsterGraph<String,Double> graph =
-//                GraphBuilder.<String,Double>create()
-//                        .connect("1").to("20").withEdge(1.42948)
-//                        .connect("1").to("2").withEdge(0.94)
-//                        .connect("1").to("4").withEdge(2.35)
-//                        .connect("2").to("20").withEdge(1.42948)
-//                        .connect("2").to("3").withEdge(2.35)
-//                        .connect("2").to("9").withEdge(2.0782)
-//                        .connect("3").to("6").withEdge(2.35)
-//                        .connect("4").to("5").withEdge(2.35)
-//                        .connect("5").to("12").withEdge(2.05448)
-//                        .connect("5").to("7").withEdge(3.2172)
-//                        .connect("6").to("7").withEdge(2.5488)
-//                        .connect("7").to("12").withEdge(2.05)
-//                        .connect("7").to("8").withEdge(1.7)
-//                        .connect("7").to("25").withEdge(3.95127)
-//                        .connect("7").to("11").withEdge(5.0)
-//                        .connect("8").to("25").withEdge(2.54804)
-//                        .connect("8").to("14").withEdge(2.64622)
-//                        .connect("8").to("15").withEdge(3.46013)
-//                        .connect("8").to("22").withEdge(2.4)
-//                        .connect("9").to("10").withEdge(1.7)
-//                        .connect("9").to("24").withEdge(3.95127)
-//                        .connect("9").to("11").withEdge(5.0)
-//                        .connect("10").to("19").withEdge(2.64622)
-//                        .connect("10").to("24").withEdge(2.54804)
-//                        .connect("10").to("18").withEdge(2.05244)
-//                        .connect("12").to("13").withEdge(3.9)
-//                        .connect("14").to("15").withEdge(1.78466)
-//                        .connect("15").to("16").withEdge(2.28)
-//                        .connect("15").to("17").withEdge(4.35)
-//                        .connect("20").to("9").withEdge(2.05)
-//                        .connect("20").to("21").withEdge(3.9)
-//                        .createUndirectedGraph();
-
-
         HipsterGraph<String,Double> graph = null;
         GraphBuilder<String, Double> graphBuilder = GraphBuilder.<String, Double>create();
         for (int i = 0; i < deps.size(); i++) {
@@ -330,6 +297,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
 
     }
 
+    //get suggestion in search room process
     private List<Room> getSuggestion(String query){
         List<Room> suggestions = new ArrayList<>();
         for(Room suggestion:mSuggestions){
@@ -340,6 +308,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         return suggestions;
     }
 
+    // draw directions
     private void getDirections(IBeacon iBeacon, List<LatLng> list){
         list.add(convertToLatLng(iBeacon.getX(), iBeacon.getY()));
         PolylineOptions options = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
@@ -350,6 +319,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         line = mMap.addPolyline(options);
     }
 
+    //draw directions on map
     private void getDirections(List<LatLng> list){
         PolylineOptions options = new PolylineOptions().width(5).color(Color.RED).geodesic(true);
         for (int i = 0; i < list.size(); i++) {
@@ -370,6 +340,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 .position(G2, 49.5f,30f));
     }
 
+    //convert IBeacon to latitude, longitude
     public LatLng convertToLatLng(IBeacon ilocation) {
         double x = ilocation.getX();
         double y = ilocation.getY();
@@ -378,6 +349,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         return new LatLng(latitude, longitude);
     }
 
+    //convert coordinate to latitude, longitude
     public LatLng convertToLatLng(double x, double y) {
         double latitude     = y * 0.00001653846 + 21.037975;
         double longitude   = x * 0.00001987447 + 105.783142;
@@ -502,7 +474,9 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
     protected void onResume() {
         super.onResume();
     }
-    
+
+
+    //select location in fingerprinting
     public IBeacon selectPoint(List<IBeacon> iBeaconList, double rssi1, double rssi2, double rssi3){
         IBeacon iBeacon = new IBeacon();
         double d1 = 0, d2 = 0, d3 = 0, d = 0;

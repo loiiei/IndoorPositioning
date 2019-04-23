@@ -11,10 +11,10 @@ public class IBeacon implements Serializable {
     private double rssi3;
     private int major;
     private int roomid;
-    public IBeacon()
-    {
 
-    }
+
+    public IBeacon() {}
+
     public IBeacon(double x, double y, float rssi1, float rssi2, float rssi3, int major) {
         this.x = x;
         this.y = y;
