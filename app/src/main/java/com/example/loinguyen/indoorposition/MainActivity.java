@@ -1,5 +1,6 @@
 package com.example.loinguyen.indoorposition;
 
+import android.content.Context;
 import android.content.Intent;
 import android.graphics.Color;
 import android.os.RemoteException;
@@ -50,7 +51,6 @@ import java.util.List;
 import es.usc.citius.hipster.algorithm.Hipster;
 import es.usc.citius.hipster.graph.GraphBuilder;
 import es.usc.citius.hipster.graph.GraphSearchProblem;
-import es.usc.citius.hipster.graph.HipsterDirectedGraph;
 import es.usc.citius.hipster.graph.HipsterGraph;
 import es.usc.citius.hipster.model.problem.SearchProblem;
 
@@ -105,7 +105,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
 
     private int tempRoom;
 
-    public BeaconAdapter beaconAdapter;
+//    Context context;
+//    public BeaconAdapter beaconAdapter = new BeaconAdapter(context);
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -129,7 +130,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
 
         iBeacons = db.getAllIbeacons();
         System.out.println("all beacons: " + iBeacons.size());
-        
+
 
         //search room
         mSuggestions = db.getListRoom();
@@ -222,6 +223,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 }
 
                 MarkerOptions markerOptions = new MarkerOptions();
+                markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
                 roomMaker = mMap.addMarker(markerOptions.position(convertToLatLng(suggestion.getX(), suggestion.getY())));
                 roomMaker.setTitle(suggestion.getTitle());
                 roomMaker.showInfoWindow();
@@ -240,6 +242,11 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                         if(mlocation!= null && deps.size() > 0)
                         {
                             tempRoom = suggestion.getId();
+                            for (IBeacon iBeacon: iBeacons) {
+                                if(iBeacon.getRoomid() == tempRoom){
+                                    tempRoom = iBeacon.getId();
+                                }
+                            }
                             List<List> path = getDirection(mlocation.getId(), tempRoom);
                             List<String> optimalPath = path.get(0);
                             latLngs = getOptimalPathDirection(iBeacons, optimalPath);
@@ -267,10 +274,10 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         List<LatLng> latLngs = new ArrayList<LatLng>();
         for(int i = 0; i < optimalPath.size(); i++)
         {
-//            for(IBeacon iBeacon: iBeacons){
-//                if(iBeacon.getId() ==  Integer.valueOf(optimalPath.get(i))) latLngs.add(convertToLatLng(iBeacon));
-//            }
-            latLngs.add(convertToLatLng(iBeacons.get(i - 1)));
+            for(IBeacon iBeacon: iBeacons){
+                if(iBeacon.getId() ==  Integer.valueOf(optimalPath.get(i))) latLngs.add(convertToLatLng(iBeacon));
+            }
+//            latLngs.add(convertToLatLng(iBeacons.get(i - 1)));
         }
         return latLngs;
     }
@@ -334,16 +341,22 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         mMap = googleMap;
         mMap.setOnGroundOverlayClickListener(this);
         mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(G2, 22));
-        mImages.add(BitmapDescriptorFactory.fromResource(R.drawable.g21));
+        mImages.add(BitmapDescriptorFactory.fromResource(R.drawable.g2));
         mGroundOverlay = mMap.addGroundOverlay(new GroundOverlayOptions()
                 .image(mImages.get(mCurrentEntry)).anchor(0,1)
                 .position(G2, 49.5f,30f));
+//        MarkerOptions markerOptions = new MarkerOptions();
+//        Marker maker = mMap.addMarker(markerOptions.position(convertToLatLng(iBeacons.get(4))));
+//       // Marker maker2 = mMap.addMarker(markerOptions.position(convertToLatLng(iBeacons.get(18))));
+//        List<List> path = getDirection(3, 14);
+//        List<LatLng> path2 = getOptimalPathDirection(iBeacons, path.get(0));
+//        getDirections(path2);
     }
 
     //convert IBeacon to latitude, longitude
-    public LatLng convertToLatLng(IBeacon ilocation) {
-        double x = ilocation.getX();
-        double y = ilocation.getY();
+    public LatLng convertToLatLng(IBeacon iLocation) {
+        double x = iLocation.getX();
+        double y = iLocation.getY();
         double latitude   = y * 0.00001653846 + 21.037975;
         double longitude = x * 0.00001987447 + 105.783142;
         return new LatLng(latitude, longitude);
@@ -395,66 +408,66 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
             long startTime = System.currentTimeMillis();
             @Override
             public void didRangeBeaconsInRegion(final Collection<Beacon> beacons, Region region) {
-            if(beacons.size()>0){
-                beaconList.clear();
-                for(final Beacon beacon: beacons) {
-                    Log.d(TAG, beacon.getId2().toString());
-                    beaconList.add(beacon);
+                if(beacons.size()>0){
+                    beaconList.clear();
+                    for(final Beacon beacon: beacons) {
+                        Log.d(TAG, beacon.getId2().toString());
+                        beaconList.add(beacon);
 
-                }
-                Log.d(TAG, String.valueOf(beaconList.size()));
-                if(beaconList.size() >= 3)
-                {
-                    // Sort list of ibeacon
-                    Collections.sort(beaconList, new Comparator<Beacon>() {
-                        @Override
-                        public int compare(Beacon beacon1, Beacon beacon2) {
-                            double rssi1 = beacon1.getRssi();
-                            double rssi2 = beacon2.getRssi();
-                        return rssi1 > rssi2 ? -1 : 1;
-                        }
-                    });
-                    
-                    String major = String.valueOf(beaconList.get(0).getId2());
-                    
-                    // detect location
-                    if((db.getListIbeaconByMajor(Integer.valueOf(major))).size()>0) {
-                        IBeacon newLocation = selectPoint(db.getListIbeaconByMajor(Integer.valueOf(major)),
-                                beaconList.get(0).getRssi(), beaconList.get(1).getRssi(), beaconList.get(2).getRssi());
-                        Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getX()) + ", " + String.valueOf(newLocation.getY()) + ")");
-                        mlocation = newLocation;
+                    }
+                    Log.d(TAG, String.valueOf(beaconList.size()));
+                    if(beaconList.size() >= 3)
+                    {
+                        // Sort list of ibeacon
+                        Collections.sort(beaconList, new Comparator<Beacon>() {
+                            @Override
+                            public int compare(Beacon beacon1, Beacon beacon2) {
+                                double rssi1 = beacon1.getRssi();
+                                double rssi2 = beacon2.getRssi();
+                            return rssi1 > rssi2 ? -1 : 1;
+                            }
+                        });
 
-                        Boolean check = false;
-                        if(marker != null){
-                            long elapsed = System.currentTimeMillis() - startTime;
-                            if (elapsed >= timeOut) {
-                                marker.remove();
-                                check = true;
+                        String major = String.valueOf(beaconList.get(0).getId2());
+
+                        // detect location
+                        if((db.getListIbeaconByMajor(Integer.valueOf(major))).size()>0) {
+                            IBeacon newLocation = selectPoint(db.getListIbeaconByMajor(Integer.valueOf(major)),
+                                    beaconList.get(0).getRssi(), beaconList.get(1).getRssi(), beaconList.get(2).getRssi());
+                            Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getX()) + ", " + String.valueOf(newLocation.getY()) + ")");
+                            mlocation = newLocation;
+
+                            Boolean check = false;
+                            if(marker != null){
+                                long elapsed = System.currentTimeMillis() - startTime;
+                                if (elapsed >= timeOut) {
+                                    marker.remove();
+                                    check = true;
+                                }
+                            }
+                            if(marker == null || check) {
+                                MarkerOptions markerOptions = new MarkerOptions();
+                                marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
+                            }
+                            if(line!= null && tempRoom != 0){
+                                line.remove();
+                                //in process find path
+                                List<List> path = getDirection(mlocation.getId(), tempRoom);
+                                List<String> optimalPath = path.get(0);
+                                latLngs = getOptimalPathDirection(iBeacons,optimalPath);
+                                getDirections(latLngs);
                             }
                         }
-                        if(marker == null || check) {
-                            MarkerOptions markerOptions = new MarkerOptions();
-                            marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
-                        }
-                        if(line!= null && tempRoom != 0){
-                            line.remove();
-                            //in process find path
-                            List<List> path = getDirection(mlocation.getId(), tempRoom);
-                            List<String> optimalPath = path.get(0);
-                            latLngs = getOptimalPathDirection(iBeacons,optimalPath);
-                            getDirections(latLngs);
-                        }
                     }
+//                    for(Beacon beacon: beacons) {
+//                        runOnUiThread(new Runnable() {
+//                            @Override
+//                            public void run() {
+//                                beaconAdapter.initAll(beacons);
+//                            }
+//                        });
+//                    }
                 }
-//                for(Beacon beacon: beacons) {
-//                    runOnUiThread(new Runnable() {
-//                        @Override
-//                        public void run() {
-//                            beaconAdapter.initAll(beacons);
-//                        }
-//                    });
-//                }
-            }
             }
         });
 
