@@ -1,7 +1,5 @@
 package com.example.loinguyen.indoorposition;
 
-import android.content.Context;
-import android.content.Intent;
 import android.graphics.Color;
 import android.os.RemoteException;
 import android.os.Bundle;
@@ -11,12 +9,15 @@ import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.MenuItem;
 import android.view.View;
+import android.widget.AdapterView;
+import android.widget.ArrayAdapter;
+import android.widget.LinearLayout;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 import com.arlib.floatingsearchview.FloatingSearchView;
 import com.arlib.floatingsearchview.suggestions.model.SearchSuggestion;
 import com.estimote.coresdk.common.requirements.SystemRequirementsChecker;
-import com.example.loinguyen.indoorposition.Adapter.Layouts.BeaconAdapter;
 import com.example.loinguyen.indoorposition.Bean.Dep;
 import com.example.loinguyen.indoorposition.Bean.IBeacon;
 import com.example.loinguyen.indoorposition.Bean.Room;
@@ -55,7 +56,7 @@ import es.usc.citius.hipster.graph.HipsterGraph;
 import es.usc.citius.hipster.model.problem.SearchProblem;
 
 public class MainActivity extends AppCompatActivity implements BeaconConsumer, OnMapReadyCallback,
-    GoogleMap.OnGroundOverlayClickListener{
+    GoogleMap.OnGroundOverlayClickListener, AdapterView.OnItemSelectedListener {
 
     private GoogleMap mMap;
 
@@ -70,6 +71,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
     Marker marker;
 
     Marker roomMaker;
+
+    Marker startMaker, targetMaker;
 
     private int mCurrentEntry = 0;
 
@@ -89,24 +92,23 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
     IBeacon mlocation;
 
     private List<Room> mSuggestions = new ArrayList<>();
+    List<LatLng> latLngs = new ArrayList<LatLng>();
+    List<IBeacon> iBeacons = new ArrayList<IBeacon>();
+    List<Dep> deps = new ArrayList<Dep>();
 
     private DrawerLayout mDrawerLayout;
 
     private TextView direction;
     private TextView information;
+    private LinearLayout cancel;
+    private TextView btnCancel;
+    private TextView customSearch;
 
     Polyline line;
 
-    List<LatLng> latLngs = new ArrayList<LatLng>();
-
     long timeOut = 3000;
-    List<IBeacon> iBeacons = new ArrayList<IBeacon>();
-    List<Dep> deps = new ArrayList<Dep>();
-
     private int tempRoom;
-
-//    Context context;
-//    public BeaconAdapter beaconAdapter = new BeaconAdapter(context);
+    private int start = 0, target = 0;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -134,13 +136,19 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
 
         //search room
         mSuggestions = db.getListRoom();
+        List<String> roomTitles = new ArrayList<String>();
+        for (Room room: mSuggestions) {
+            roomTitles.add(room.getTitle() + " " + room.getDescription());
+        }
         deps = db.getListDep();
-//        System.out.println("all deps: " + deps.size());
-//        System.out.println("Dijkstra direction: " + getDirection(7, 24));
         direction = (TextView)findViewById(R.id.direction);
         information = (TextView) findViewById(R.id.room_title);
+        cancel = (LinearLayout) findViewById(R.id.custom_search_room);
+        btnCancel = (TextView) findViewById(R.id.cancel);
+        customSearch = (TextView) findViewById(R.id.room_search);
         direction.setVisibility(View.INVISIBLE);
         information.setVisibility(View.INVISIBLE);
+        cancel.setVisibility(View.INVISIBLE);
 
         //Navigation
         NavigationView navigationView = findViewById(R.id.nav_view);
@@ -150,13 +158,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 public boolean onNavigationItemSelected(MenuItem menuItem) {
 
                     int id = menuItem.getItemId();
-                    switch (id) {
-                        case R.id.setting:
-                            Intent intent = new Intent(MainActivity.this, BeaconActivity.class);
-                            startActivity(intent);
-                            break;
-                    }
-                    // set item as selected to persist highlight
                     menuItem.setChecked(true);
                     // close drawer when item is tapped
                     mDrawerLayout.closeDrawers();
@@ -164,13 +165,70 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 }
             });
 
+        Spinner spin = (Spinner) findViewById(R.id.start_room);
+        Spinner spin1 = (Spinner) findViewById(R.id.target_room);
+        ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, roomTitles);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spin.setAdapter(adapter);
+        spin1.setAdapter(adapter);
+        spin.setOnItemSelectedListener(this);
+        spin1.setOnItemSelectedListener(this);
 
+        TextView customDirection = (TextView) findViewById(R.id.direction1);
+        customDirection.setOnClickListener(new View.OnClickListener() {
+
+            @Override
+            public void onClick(View v) {
+                direction.setVisibility(View.INVISIBLE);
+                information.setVisibility(View.INVISIBLE);
+                if(startMaker != null)   startMaker.remove();
+                if(targetMaker != null)  targetMaker.remove();
+
+                if(roomMaker != null){
+
+                    roomMaker.remove();
+                }
+                if(start != target )
+                {
+                    for (IBeacon iBeacon: iBeacons) {
+                        if(iBeacon.getRoomid() == start) start = iBeacon.getId();
+                        if(iBeacon.getRoomid() == target) target = iBeacon.getId();
+                    }
+                    MarkerOptions markerOptions = new MarkerOptions();
+                    markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
+                    startMaker = mMap.addMarker(markerOptions.position(convertToLatLng(iBeacons.get(start-1))));
+                    startMaker.setTitle(mSuggestions.get((iBeacons.get(start-1)).getRoomid()-1).getTitle());
+                    targetMaker = mMap.addMarker(markerOptions.position(convertToLatLng(iBeacons.get(target-1))));
+                    targetMaker.setTitle(mSuggestions.get(iBeacons.get(target-1).getRoomid()-1).getTitle());
+                    startMaker.showInfoWindow();
+                    targetMaker.showInfoWindow();
+                    List<List> roomPath = getDirection(start, target);
+                    if(line!=null) line.remove();
+                    getDirections(getOptimalPathDirection(iBeacons, roomPath.get(0)));
+                    mDrawerLayout.closeDrawers();
+                    cancel.setVisibility(View.VISIBLE);
+                    customSearch.setText("Từ: P" + mSuggestions.get((iBeacons.get(start-1)).getRoomid()-1).getTitle()
+                            + "      Đến: P" + mSuggestions.get(iBeacons.get(target-1).getRoomid()-1).getTitle());
+                    btnCancel.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            startMaker.remove();
+                            targetMaker.remove();
+                            line.remove();
+                            cancel.setVisibility(View.INVISIBLE);
+                        }
+                    });
+                }
+
+            }
+        });
 
         final FloatingSearchView searchView = (FloatingSearchView) findViewById(R.id.floating_search_view);
 
         searchView.setOnQueryChangeListener(new FloatingSearchView.OnQueryChangeListener() {
             @Override
             public void onSearchTextChanged(String oldQuery, String newQuery) {
+                if (line != null) line.remove();
                 if (!oldQuery.equals("") && newQuery.equals("")) {
                     searchView.clearSuggestions();
                     if(roomMaker != null)
@@ -180,6 +238,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     tempRoom = 0;
                     direction.setVisibility(View.INVISIBLE);
                     information.setVisibility(View.INVISIBLE);
+                    cancel.setVisibility(View.INVISIBLE);
                 } else {
                     searchView.setClearBtnColor(Color.GRAY);
                     searchView.showProgress();
@@ -204,6 +263,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         searchView.setOnSearchListener(new FloatingSearchView.OnSearchListener() {
             @Override
             public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
+                if (line != null) line.remove();
                 final Room suggestion= (Room) searchSuggestion;
                 searchView.setSearchText(suggestion.getBody());
                 searchView.clearSearchFocus();
@@ -212,6 +272,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     if (line != null) line.remove();
                     latLngs.clear();
                     tempRoom = 0;
+                    cancel.setVisibility(View.INVISIBLE);
                     direction.setVisibility(View.INVISIBLE);
                     information.setVisibility(View.INVISIBLE);
                 }
@@ -221,7 +282,8 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                         suggestion.setY(iBeacon.getY());
                     }
                 }
-
+                if(startMaker != null)   startMaker.remove();
+                if(targetMaker != null)  targetMaker.remove();
                 MarkerOptions markerOptions = new MarkerOptions();
                 markerOptions.icon(BitmapDescriptorFactory.defaultMarker(BitmapDescriptorFactory.HUE_AZURE));
                 roomMaker = mMap.addMarker(markerOptions.position(convertToLatLng(suggestion.getX(), suggestion.getY())));
@@ -231,6 +293,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 information.setText(suggestion.getTitle() + " " + suggestion.getDescription());
                 direction.setVisibility(View.VISIBLE);
                 information.setVisibility(View.VISIBLE);
+                cancel.setVisibility(View.INVISIBLE);
                 direction.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
@@ -277,7 +340,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
             for(IBeacon iBeacon: iBeacons){
                 if(iBeacon.getId() ==  Integer.valueOf(optimalPath.get(i))) latLngs.add(convertToLatLng(iBeacon));
             }
-//            latLngs.add(convertToLatLng(iBeacons.get(i - 1)));
         }
         return latLngs;
     }
@@ -345,12 +407,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         mGroundOverlay = mMap.addGroundOverlay(new GroundOverlayOptions()
                 .image(mImages.get(mCurrentEntry)).anchor(0,1)
                 .position(G2, 49.5f,30f));
-//        MarkerOptions markerOptions = new MarkerOptions();
-//        Marker maker = mMap.addMarker(markerOptions.position(convertToLatLng(iBeacons.get(4))));
-//       // Marker maker2 = mMap.addMarker(markerOptions.position(convertToLatLng(iBeacons.get(18))));
-//        List<List> path = getDirection(3, 14);
-//        List<LatLng> path2 = getOptimalPathDirection(iBeacons, path.get(0));
-//        getDirections(path2);
     }
 
     //convert IBeacon to latitude, longitude
@@ -459,14 +515,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                             }
                         }
                     }
-//                    for(Beacon beacon: beacons) {
-//                        runOnUiThread(new Runnable() {
-//                            @Override
-//                            public void run() {
-//                                beaconAdapter.initAll(beacons);
-//                            }
-//                        });
-//                    }
                 }
             }
         });
@@ -496,7 +544,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         ArrayList<IBeacon> trustBeacon = new ArrayList<IBeacon>();
         ArrayList minDistance = new ArrayList();
 
-        //define ibeacon nearesst
+        //define beacon nearest
         if(iBeaconList.size()>0){
             for (int i = 0; i < iBeaconList.size(); i++) {
                 d1 = rssi1 - iBeaconList.get(i).getRssi1();
@@ -515,4 +563,20 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         return iBeacon;
     }
 
+    @Override
+    public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+        if(parent.getId() == R.id.start_room)
+        {
+            start = position + 1;
+        }
+        else if(parent.getId() == R.id.target_room)
+        {
+            target = position + 1;
+        }
+    }
+
+    @Override
+    public void onNothingSelected(AdapterView<?> parent) {
+
+    }
 }
