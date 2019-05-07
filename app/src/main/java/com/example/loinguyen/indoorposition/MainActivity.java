@@ -43,6 +43,8 @@ import org.altbeacon.beacon.Identifier;
 import org.altbeacon.beacon.MonitorNotifier;
 import org.altbeacon.beacon.RangeNotifier;
 import org.altbeacon.beacon.Region;
+
+import java.io.Console;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -95,6 +97,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
     List<LatLng> latLngs = new ArrayList<LatLng>();
     List<IBeacon> iBeacons = new ArrayList<IBeacon>();
     List<Dep> deps = new ArrayList<Dep>();
+    List<Integer> locationList = new ArrayList<Integer>();
 
     private DrawerLayout mDrawerLayout;
 
@@ -106,7 +109,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
 
     Polyline line;
 
-    long timeOut = 3000;
     private int tempRoom;
     private int start = 0, target = 0;
 
@@ -141,6 +143,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
             roomTitles.add(room.getTitle() + " " + room.getDescription());
         }
         deps = db.getListDep();
+        System.out.println("all deps: " + deps.size());
         direction = (TextView)findViewById(R.id.direction);
         information = (TextView) findViewById(R.id.room_title);
         cancel = (LinearLayout) findViewById(R.id.custom_search_room);
@@ -149,7 +152,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         direction.setVisibility(View.INVISIBLE);
         information.setVisibility(View.INVISIBLE);
         cancel.setVisibility(View.INVISIBLE);
-
+        System.out.println(getDirection(6, 13));
         //Navigation
         NavigationView navigationView = findViewById(R.id.nav_view);
         navigationView.setNavigationItemSelectedListener(
@@ -164,7 +167,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     return false;
                 }
             });
-
+        // cusyom search
         Spinner spin = (Spinner) findViewById(R.id.start_room);
         Spinner spin1 = (Spinner) findViewById(R.id.target_room);
         ArrayAdapter<String> adapter = new ArrayAdapter<String>(this, android.R.layout.simple_spinner_item, roomTitles);
@@ -183,11 +186,9 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                 information.setVisibility(View.INVISIBLE);
                 if(startMaker != null)   startMaker.remove();
                 if(targetMaker != null)  targetMaker.remove();
-
-                if(roomMaker != null){
-
-                    roomMaker.remove();
-                }
+                if(roomMaker != null)   roomMaker.remove();
+                if(line!=null) line.remove();
+                tempRoom = 0;
                 if(start != target )
                 {
                     for (IBeacon iBeacon: iBeacons) {
@@ -203,12 +204,11 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                     startMaker.showInfoWindow();
                     targetMaker.showInfoWindow();
                     List<List> roomPath = getDirection(start, target);
-                    if(line!=null) line.remove();
                     getDirections(getOptimalPathDirection(iBeacons, roomPath.get(0)));
                     mDrawerLayout.closeDrawers();
                     cancel.setVisibility(View.VISIBLE);
-                    customSearch.setText("Từ: P" + mSuggestions.get((iBeacons.get(start-1)).getRoomid()-1).getTitle()
-                            + "      Đến: P" + mSuggestions.get(iBeacons.get(target-1).getRoomid()-1).getTitle());
+                    customSearch.setText("From: P" + mSuggestions.get((iBeacons.get(start-1)).getRoomid()-1).getTitle()
+                            + "      To: P" + mSuggestions.get(iBeacons.get(target-1).getRoomid()-1).getTitle());
                     btnCancel.setOnClickListener(new View.OnClickListener() {
                         @Override
                         public void onClick(View v) {
@@ -257,6 +257,7 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
             }
             @Override
             public void onFocusCleared() {
+
             }
         });
 
@@ -264,12 +265,13 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
             @Override
             public void onSuggestionClicked(SearchSuggestion searchSuggestion) {
                 if (line != null) line.remove();
+
                 final Room suggestion= (Room) searchSuggestion;
                 searchView.setSearchText(suggestion.getBody());
                 searchView.clearSearchFocus();
                 if(roomMaker != null) {
                     roomMaker.remove();
-                    if (line != null) line.remove();
+                   // if (line != null) line.remove();
                     latLngs.clear();
                     tempRoom = 0;
                     cancel.setVisibility(View.INVISIBLE);
@@ -327,7 +329,6 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         });
 
         searchView.attachNavigationDrawerToMenuButton(mDrawerLayout);
-
 
     }
 
@@ -491,27 +492,31 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
                             IBeacon newLocation = selectPoint(db.getListIbeaconByMajor(Integer.valueOf(major)),
                                     beaconList.get(0).getRssi(), beaconList.get(1).getRssi(), beaconList.get(2).getRssi());
                             Log.d(LOCATION_TAG, "(" + String.valueOf(newLocation.getX()) + ", " + String.valueOf(newLocation.getY()) + ")");
-                            mlocation = newLocation;
-
+                            //mlocation = newLocation;
+                            locationList.add(newLocation.getId());
                             Boolean check = false;
-                            if(marker != null){
-                                long elapsed = System.currentTimeMillis() - startTime;
-                                if (elapsed >= timeOut) {
+                            if(locationList.size() == 7) {
+                                if (marker != null) {
                                     marker.remove();
                                     check = true;
                                 }
-                            }
-                            if(marker == null || check) {
-                                MarkerOptions markerOptions = new MarkerOptions();
-                                marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
-                            }
-                            if(line!= null && tempRoom != 0){
-                                line.remove();
-                                //in process find path
-                                List<List> path = getDirection(mlocation.getId(), tempRoom);
-                                List<String> optimalPath = path.get(0);
-                                latLngs = getOptimalPathDirection(iBeacons,optimalPath);
-                                getDirections(latLngs);
+                                int temp = getPopularElement(locationList);
+                                Log.d("Vi tri ", String.valueOf(temp));
+                                mlocation = iBeacons.get(temp-1);
+                                if (marker == null || check) {
+                                    MarkerOptions markerOptions = new MarkerOptions();
+                                    marker = mMap.addMarker(markerOptions.position(convertToLatLng(mlocation)));
+                                }
+
+                                if(line!= null && tempRoom != 0 && roomMaker!= null){
+                                    line.remove();
+                                    //in process find path
+                                    List<List> path = getDirection(mlocation.getId(), tempRoom);
+                                    List<String> optimalPath = path.get(0);
+                                    latLngs = getOptimalPathDirection(iBeacons,optimalPath);
+                                    getDirections(latLngs);
+                                }
+                                locationList.clear();
                             }
                         }
                     }
@@ -561,6 +566,29 @@ public class MainActivity extends AppCompatActivity implements BeaconConsumer, O
         }
         iBeacon = iBeaconList.get(indexOfMinimum);
         return iBeacon;
+    }
+
+    public int getPopularElement(List<Integer> a)
+    {
+        int count = 1, tempCount;
+        int popular = a.get(0);
+        int temp = 0;
+        for (int i = 0; i < (a.size() - 1); i++)
+        {
+            temp = a.get(i);
+            tempCount = 0;
+            for (int j = 1; j < a.size(); j++)
+            {
+                if (temp == a.get(j))
+                    tempCount++;
+            }
+            if (tempCount > count)
+            {
+                popular = temp;
+                count = tempCount;
+            }
+        }
+        return popular;
     }
 
     @Override
